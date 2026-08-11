@@ -16,30 +16,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Figtree:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/theme.css">
 <style>
-  :root{
-    --color-bg:#f5ead8; --color-surface:#ebddc5; --color-text:#201e1d;
-    --color-accent:#c67139; --color-accent-2:#7a8a5e;
-    --color-divider: color-mix(in srgb, #201e1d 16%, transparent);
-    --color-neutral-100:#f9f4ed; --color-neutral-200:#eee7db; --color-neutral-300:#dcd3c4;
-    --color-neutral-400:#c0b6a5; --color-neutral-500:#a19786; --color-neutral-600:#82796a;
-    --color-neutral-700:#645c50; --color-neutral-800:#474238; --color-neutral-900:#2e2b25;
-    --color-accent-100:#fff2eb; --color-accent-200:#ffe1d0; --color-accent-300:#ffc6a5;
-    --color-accent-500:#d67f48; --color-accent-600:#b2622d; --color-accent-700:#8c491a;
-    --color-accent-2-100:#f0fae1; --color-accent-2-300:#ccdbb2; --color-accent-2-500:#8fa073;
-    --color-accent-2-600:#728157; --color-accent-2-700:#56633f;
-    --font-heading:"Caprasimo", system-ui, sans-serif;
-    --font-body:"Figtree", system-ui, sans-serif;
-    --radius-sm:8px; --radius-md:16px; --radius-lg:28px;
-    --shadow-sm:0 1px 2px color-mix(in srgb,#2e2b25 14%, transparent);
-    --shadow-md:0 3px 10px color-mix(in srgb,#2e2b25 16%, transparent);
-    --shadow-lg:0 12px 32px color-mix(in srgb,#2e2b25 22%, transparent);
-  }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{height:100%;min-height:100dvh;overscroll-behavior:none}
-  body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
   h1,h2,h3,h4{font-family:var(--font-heading);font-weight:400;margin:0}
-  button,input{font-family:inherit}
+  input{font-family:inherit}
   button{cursor:pointer}
   @keyframes rzPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.015)}}
   @keyframes rzUp{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:translateY(0)}}
@@ -158,6 +138,8 @@
 <body>
 <div id="app"></div>
 
+<script src="../shared/firebase.js"></script>
+<script src="../shared/util.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
    Rodizio · Meseros — vanilla JS, un solo archivo, sin build.
@@ -367,45 +349,13 @@ MENU.forEach(g => g.items.forEach(i => { ITEM_INDEX[i.id] = Object.assign({ cat:
 const ETIQUETA = { enviado: "Enviado", preparacion: "En preparación", listo: "Listo para servir", entregado: "Servido" };
 const ESTADOS = ["enviado", "preparacion", "listo", "entregado"];
 
-/* ── Firebase Realtime Database — REST + SSE, sin SDK ni apiKey ── */
-const DB_URL = "https://rodizio-cucuta-08-default-rtdb.firebaseio.com";
-const dbUrl = (path) => `${DB_URL}${path}.json`;
-
-async function dbPush(path, data) {
-  const r = await fetch(dbUrl(path), { method: "POST", body: JSON.stringify(data) });
-  const j = await r.json();
-  return j.name;
-}
-async function dbGet(path) {
-  const r = await fetch(dbUrl(path));
-  return r.json();
-}
-async function dbUpdate(path, data) {
-  await fetch(dbUrl(path), { method: "PATCH", body: JSON.stringify(data) });
-}
-
-// Código secuencial diario (P-001, P-002, …) con escritura condicional
-// (ETag) para evitar que dos comandas enviadas a la vez choquen de número.
-async function siguienteCodigo() {
-  const hoy = new Date().toISOString().slice(0, 10);
-  const path = `/contadores/${hoy}`;
-  for (let intento = 0; intento < 5; intento++) {
-    try {
-      const getRes = await fetch(dbUrl(path), { headers: { "X-Firebase-ETag": "true" } });
-      const etag = getRes.headers.get("ETag");
-      let actual = await getRes.json();
-      if (typeof actual !== "number") actual = 0;
-      const siguiente = actual + 1;
-      const putRes = await fetch(dbUrl(path), {
-        method: "PUT",
-        headers: etag ? { "if-match": etag } : {},
-        body: JSON.stringify(siguiente)
-      });
-      if (putRes.status === 200) return "P-" + String(siguiente).padStart(3, "0");
-    } catch (e) {}
-  }
-  return "P-" + String(Date.now()).slice(-4);
-}
+/* ── Firebase Realtime Database — REST + SSE, sin SDK ni apiKey ──
+   DB_URL / dbUrl / dbGet / dbPush / dbUpdate / escucharSSE /
+   aplicarEventoSSE / siguienteCodigo vienen de ../shared/firebase.js
+   Nota: hashPin/crearCuentaSiLibre se quedan aquí (no en shared/) a
+   propósito — son parte del login por PIN que la Fase 1 del proyecto
+   va a reemplazar por Firebase Authentication real. No tiene sentido
+   reubicar código que está a punto de borrarse. ── */
 
 // El PIN nunca se guarda ni se envía en texto plano — se hashea en el
 // propio celular con SHA-256 antes de tocar la red.
@@ -440,8 +390,10 @@ const KEY_RECORDADOS = "rodizio_dispositivo_v1";
 const KEY_SESION = "rodizio_sesion_v1";
 const leerJSON = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch (e) { return def; } };
 const escribirJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-const cop = n => "$" + Number(n || 0).toLocaleString("es-CO");
-const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// escapeHtml viene de ../shared/util.js. "cop" es solo un alias local
+// hacia fmtCop (mismo shared/util.js) para no tocar los usos de cop(...)
+// repartidos por el resto de este archivo.
+const cop = fmtCop;
 
 function leerRecordados() { return leerJSON(KEY_RECORDADOS, []); }
 function recordarEnDispositivo(usuario, nombre) {
@@ -477,27 +429,13 @@ let primeraCargaPedidos = true;
 let prevEstados = {}; // id -> estado, para detectar cuándo un pedido pasa a "listo"
 
 function conectarPedidos() {
-  const es = new EventSource(dbUrl("/pedidos"));
-  es.addEventListener("put", (e) => aplicarEvento("put", JSON.parse(e.data)));
-  es.addEventListener("patch", (e) => aplicarEvento("patch", JSON.parse(e.data)));
+  const es = escucharSSE("/pedidos", (tipo, evento) => {
+    state.pedidos = aplicarEventoSSE(state.pedidos, tipo, evento);
+    detectarPedidosListos();
+    setState({ conectado: true });
+  });
   es.onopen = () => setState({ conectado: true });
   es.onerror = () => setState({ conectado: false });
-}
-function aplicarEvento(tipo, evento) {
-  const { path, data } = evento;
-  if (path === "/") {
-    state.pedidos = data || {};
-  } else {
-    const key = path.slice(1).split("/")[0];
-    if (tipo === "put") {
-      if (data === null) delete state.pedidos[key];
-      else state.pedidos[key] = data;
-    } else {
-      state.pedidos[key] = Object.assign({}, state.pedidos[key], data);
-    }
-  }
-  detectarPedidosListos();
-  setState({ conectado: true });
 }
 
 // Avisa (sonido + notificación del sistema) apenas un pedido del mesero
@@ -521,23 +459,9 @@ function pedirPermisoNotificaciones() {
   }
 }
 
-let audioCtxMesero;
-function beepListo() {
-  try {
-    audioCtxMesero = audioCtxMesero || new (window.AudioContext || window.webkitAudioContext)();
-    const t0 = audioCtxMesero.currentTime;
-    [740, 1040].forEach((freq, i) => {
-      const o = audioCtxMesero.createOscillator();
-      const g = audioCtxMesero.createGain();
-      o.type = "sine"; o.frequency.value = freq;
-      g.gain.setValueAtTime(0, t0 + i * 0.15);
-      g.gain.linearRampToValueAtTime(0.2, t0 + i * 0.15 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t0 + i * 0.15 + 0.22);
-      o.connect(g); g.connect(audioCtxMesero.destination);
-      o.start(t0 + i * 0.15); o.stop(t0 + i * 0.15 + 0.24);
-    });
-  } catch (e) {}
-}
+// Tono propio de "pedido listo" (distinto al de aviso de cocina/caja),
+// generado con la fábrica compartida crearBeep() de ../shared/util.js.
+const beepListo = crearBeep([740, 1040]);
 
 function avisarListo(p) {
   beepListo();

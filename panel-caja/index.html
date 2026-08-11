@@ -17,31 +17,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Figtree:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer></script>
+<link rel="stylesheet" href="../shared/theme.css">
 <style>
-  /* ————— Tokens (Organic — heredados de la app de meseros) ————— */
-  :root{
-    --color-bg:#f5ead8; --color-surface:#ebddc5; --color-text:#201e1d;
-    --color-accent:#c67139; --color-accent-2:#7a8a5e;
-    --color-divider: color-mix(in srgb, #201e1d 16%, transparent);
-    --color-neutral-100:#f9f4ed; --color-neutral-200:#eee7db; --color-neutral-300:#dcd3c4;
-    --color-neutral-400:#c0b6a5; --color-neutral-500:#a19786; --color-neutral-600:#82796a;
-    --color-neutral-700:#645c50; --color-neutral-800:#474238; --color-neutral-900:#2e2b25;
-    --color-accent-100:#fff2eb; --color-accent-200:#ffe1d0; --color-accent-300:#ffc6a5;
-    --color-accent-500:#d67f48; --color-accent-600:#b2622d; --color-accent-700:#8c491a;
-    --color-accent-2-100:#f0fae1; --color-accent-2-300:#ccdbb2; --color-accent-2-500:#8fa073;
-    --color-accent-2-600:#728157; --color-accent-2-700:#56633f;
-    --font-heading:"Caprasimo", system-ui, sans-serif;
-    --font-body:"Figtree", system-ui, sans-serif;
-    --radius-sm:8px; --radius-md:16px; --radius-lg:28px;
-    --shadow-sm:0 1px 2px color-mix(in srgb,#2e2b25 14%, transparent);
-    --shadow-md:0 3px 10px color-mix(in srgb,#2e2b25 16%, transparent);
-    --shadow-lg:0 12px 32px color-mix(in srgb,#2e2b25 22%, transparent);
-  }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{height:100%;min-height:100dvh;overscroll-behavior:none}
-  body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
   h1,h2,h3{font-family:var(--font-heading);font-weight:400;margin:0}
-  button{font-family:inherit}
   @keyframes rzPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.015)}}
   @keyframes rzPop{0%{opacity:0;transform:translateY(-8px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
   @keyframes rzRing{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--color-accent) 55%, transparent)}100%{box-shadow:0 0 0 14px transparent}}
@@ -176,6 +154,8 @@
   <div class="stat"><b id="statPromedio">0 min</b>tiempo medio en cocina</div>
 </div>
 
+<script src="../shared/firebase.js"></script>
+<script src="../shared/util.js"></script>
 <script>
 /* ─────────────────────────────────────────────────────────────
    Rodizio · Panel de caja — vanilla JS, sin build, un solo archivo.
@@ -183,73 +163,33 @@
    (Server-Sent Events), así que no necesita apiKey ni el SDK de Firebase:
    solo la URL de la base de datos.
    ───────────────────────────────────────────────────────────── */
-const DB_URL = "https://rodizio-cucuta-08-default-rtdb.firebaseio.com";
-const dbUrl = (path) => `${DB_URL}${path}.json`;
-
-async function dbUpdate(path, data) {
-  await fetch(dbUrl(path), { method: "PATCH", body: JSON.stringify(data) });
-}
+// DB_URL / dbUrl / dbUpdate / escucharSSE / aplicarEventoSSE / escapeHtml /
+// fmtCop / crearBeep vienen de ../shared/firebase.js y ../shared/util.js
 
 let pedidos = {};      // { pushId: {codigo, mesa, mesero, lineas, total, estado, ts} }
 let vistos = new Set(); // ids ya renderizados, para detectar "nuevos" y sonar aviso
 let primeraCarga = true;
 let sonidoOn = true;
-
-function fmtCop(n){ return "$" + Number(n||0).toLocaleString("es-CO"); }
+const beep = crearBeep([880, 1180]);
 
 function minsDesde(ts){ return Math.max(0, Math.round((Date.now() - ts) / 60000)); }
 
 /* ── Server-Sent Events: escucha /pedidos en tiempo real ── */
 function conectar() {
-  const es = new EventSource(dbUrl("/pedidos"));
-  es.addEventListener("put", (e) => aplicar("put", JSON.parse(e.data)));
-  es.addEventListener("patch", (e) => aplicar("patch", JSON.parse(e.data)));
+  const es = escucharSSE("/pedidos", (tipo, evento) => {
+    pedidos = aplicarEventoSSE(pedidos, tipo, evento);
+    setStatus(true);
+    render();
+  });
   es.onopen = () => setStatus(true);
   es.onerror = () => { setStatus(false); };
   return es;
-}
-
-function aplicar(tipo, evento) {
-  const { path, data } = evento;
-  if (path === "/") {
-    pedidos = data || {};
-  } else {
-    const key = path.slice(1).split("/")[0];
-    if (tipo === "put") {
-      if (data === null) delete pedidos[key];
-      else pedidos[key] = data;
-    } else {
-      pedidos[key] = Object.assign({}, pedidos[key], data);
-    }
-  }
-  setStatus(true);
-  render();
 }
 
 function setStatus(ok) {
   document.getElementById("dot").className = "dot " + (ok ? "live" : "off");
   document.getElementById("statusTxt").textContent = ok ? "En vivo" : "Conectando…";
   document.getElementById("banner").classList.toggle("show", !ok);
-}
-
-/* ── Sonido de aviso — tono generado con Web Audio, sin archivos externos ── */
-let audioCtx;
-function beep() {
-  if (!sonidoOn) return;
-  try {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    const t0 = audioCtx.currentTime;
-    [880, 1180].forEach((freq, i) => {
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      o.type = "sine"; o.frequency.value = freq;
-      g.gain.setValueAtTime(0, t0 + i * 0.16);
-      g.gain.linearRampToValueAtTime(0.18, t0 + i * 0.16 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t0 + i * 0.16 + 0.22);
-      o.connect(g); g.connect(audioCtx.destination);
-      o.start(t0 + i * 0.16); o.stop(t0 + i * 0.16 + 0.24);
-    });
-  } catch (e) {}
 }
 
 document.getElementById("soundBtn").addEventListener("click", () => {
@@ -273,7 +213,6 @@ function linea(l) {
     <span class="t-nombre">${escapeHtml(l.nombre)}${l.nota ? `<span class="t-nota">${escapeHtml(l.nota)}</span>` : ""}</span>
   </div>`;
 }
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
 function ticket(id, p, accion) {
   const min = minsDesde(p.ts);
@@ -319,7 +258,7 @@ function render() {
   document.getElementById("statPromedio").textContent = promedio + " min";
 
   const nuevosSinVer = enviados.some(([id]) => !vistos.has(id));
-  if (nuevosSinVer && !primeraCarga) beep();
+  if (nuevosSinVer && !primeraCarga && sonidoOn) beep();
 
   entries.forEach(([id]) => vistos.add(id));
   primeraCarga = false;

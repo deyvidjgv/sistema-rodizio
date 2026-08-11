@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#c67139">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rodizio Admin">
+<title>Rodizio · Administración</title>
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Figtree:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/theme.css">
+<style>
+  h1,h2,h3{font-family:var(--font-heading);font-weight:400;margin:0}
+  @keyframes rzPop{0%{opacity:0;transform:translateY(-8px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
+  @keyframes rzToast{0%{opacity:0;transform:translate(-50%,10px)}10%,90%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,10px)}}
+
+  header{position:sticky;top:0;z-index:20;background:color-mix(in srgb, var(--color-bg) 88%, transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--color-divider)}
+  .headwrap{max-width:900px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:14px}
+  .brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+  .brand-badge{width:38px;height:38px;border-radius:12px;background:var(--color-accent);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);flex:none}
+  .brand-badge svg{width:20px;height:20px}
+  .brand h1{font-size:19px;line-height:1.1}
+  .brand small{display:block;font-size:11px;color:var(--color-neutral-600);letter-spacing:.03em;text-transform:uppercase;margin-top:2px}
+  .logout{border:1px solid var(--color-divider);background:var(--color-neutral-100);border-radius:999px;padding:8px 16px;font-size:12.5px;font-weight:600;color:var(--color-neutral-700);cursor:pointer}
+
+  main{max-width:900px;margin:0 auto;padding:22px 20px 60px}
+  .cargando{text-align:center;color:var(--color-neutral-600);padding:60px 20px}
+
+  .card{background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:22px 22px 24px;box-shadow:var(--shadow-sm);margin-bottom:22px}
+  .card h2{font-size:19px;margin-bottom:4px}
+  .card .sub{color:var(--color-neutral-600);font-size:13px;margin:0 0 18px}
+
+  .field{margin-bottom:13px}
+  .field label{display:block;font-size:12.5px;font-weight:700;color:var(--color-neutral-700);margin-bottom:6px}
+  .field input{width:100%;box-sizing:border-box;border:1px solid var(--color-divider);background:var(--color-bg);border-radius:12px;padding:12px 15px;font-size:14.5px;color:var(--color-text)}
+  .field input:focus{outline:2px solid var(--color-accent);outline-offset:1px}
+
+  .roles-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:6px}
+  .role-chip{display:flex;align-items:center;gap:8px;border:1px solid var(--color-divider);background:var(--color-bg);border-radius:12px;padding:10px 13px;font-size:13.5px;font-weight:600;cursor:pointer;user-select:none}
+  .role-chip input{margin:0}
+  .role-chip.on{border-color:var(--color-accent);background:var(--color-accent-100);color:var(--color-accent-700)}
+
+  .estado-toggle{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;color:var(--color-neutral-700);margin:14px 0 4px}
+
+  .cta{width:100%;min-height:50px;border:0;border-radius:999px;font-family:var(--font-heading);font-size:15.5px;background:var(--color-accent);color:var(--color-bg);cursor:pointer;margin-top:6px}
+  .cta:disabled{opacity:.6;cursor:wait}
+  .err{color:#a8382a;font-size:12.5px;margin:10px 0 0}
+  .ok{color:var(--color-accent-2-700);font-size:12.5px;margin:10px 0 0}
+  .hidden{display:none}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--color-neutral-600);padding:0 10px 8px;font-weight:700}
+  td{padding:11px 10px;border-top:1px solid var(--color-divider)}
+  .badge-estado{border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:700}
+  .badge-estado.activo{background:var(--color-accent-2-100);color:var(--color-accent-2-700)}
+  .badge-estado.inactivo{background:var(--color-neutral-200);color:var(--color-neutral-600)}
+  .rol-tag{display:inline-block;background:var(--color-accent-100);color:var(--color-accent-700);border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin:1px 3px 1px 0}
+  .empty-tabla{text-align:center;color:var(--color-neutral-500);padding:26px 10px;font-size:13px}
+
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--color-neutral-900);color:var(--color-bg);padding:12px 20px;border-radius:999px;font-size:13px;z-index:40;box-shadow:var(--shadow-lg);animation:rzToast 2.6s ease forwards;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<div id="vistaCargando" class="cargando">Verificando sesión…</div>
+
+<div id="app" style="display:none">
+<header>
+  <div class="headwrap">
+    <div class="brand">
+      <div class="brand-badge"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20 L20 4" stroke="#f5ead8" stroke-width="2.4" stroke-linecap="round"/><circle cx="7.3" cy="16.7" r="3" fill="#f5ead8"/><circle cx="12" cy="12" r="3" fill="#f5ead8"/><circle cx="16.7" cy="7.3" r="3" fill="#f5ead8"/></svg></div>
+      <div><h1>Rodizio</h1><small>Administración</small></div>
+    </div>
+    <button class="logout" id="btnLogout">Salir</button>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Crear trabajador</h2>
+    <p class="sub">Se crea la cuenta en Firebase Authentication y su perfil en /trabajadores.</p>
+    <form id="formCrear">
+      <div class="field"><label>Nombre completo</label><input id="fNombre" placeholder="Ej. Juan Pérez"></div>
+      <div class="field"><label>Usuario</label><input id="fUsuario" placeholder="Ej. juanp" autocomplete="off"></div>
+      <div class="field"><label>Contraseña</label><input id="fPassword" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+      <div class="field">
+        <label>Roles permitidos</label>
+        <div class="roles-grid" id="rolesGrid"></div>
+      </div>
+      <label class="estado-toggle"><input type="checkbox" id="fActivo" checked> Cuenta activa desde el inicio</label>
+      <button class="cta" id="btnCrear" type="submit">Crear trabajador</button>
+      <p class="err hidden" id="errCrear"></p>
+      <p class="ok hidden" id="okCrear"></p>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Trabajadores</h2>
+    <p class="sub">Vista de solo lectura por ahora — editar, desactivar y restablecer contraseña llegan más adelante.</p>
+    <div id="tablaWrap">
+      <table>
+        <thead><tr><th>Nombre</th><th>Usuario</th><th>Roles</th><th>Estado</th></tr></thead>
+        <tbody id="tbodyTrabajadores"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../shared/firebase.js"></script>
+<script src="../shared/util.js"></script>
+<script src="../shared/roles.js"></script>
+<script type="module" src="../shared/auth.js"></script>
+<script type="module">
+/* ─────────────────────────────────────────────────────────────
+   Rodizio · Panel de administración — versión mínima.
+   Alcance a propósito reducido: SOLO crear trabajadores + verlos
+   en una lista de solo lectura. Editar, desactivar/activar, quitar
+   roles y restablecer contraseña de otro trabajador quedan para más
+   adelante (ver claude.md, sección "Pendientes").
+
+   Guard de acceso: si no hay sesión, o el trabajador no tiene el rol
+   "admin" entre sus rolesPermitidos, se manda de vuelta al login raíz.
+   ───────────────────────────────────────────────────────────── */
+
+const ROLES_DISPONIBLES = ["admin", "mesero", "cajero", "cocinero"];
+const $ = (id) => document.getElementById(id);
+
+function esperarAuthListo() {
+  return new Promise((resolve) => {
+    (function chequear() {
+      if (window.login && window.onAuthStateChanged && window.crearCuenta) resolve();
+      else setTimeout(chequear, 30);
+    })();
+  });
+}
+
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2600);
+}
+
+function pintarRolesGrid() {
+  $("rolesGrid").innerHTML = ROLES_DISPONIBLES.map((r) => `
+    <label class="role-chip" data-rol="${r}">
+      <input type="checkbox" value="${r}"> ${r[0].toUpperCase() + r.slice(1)}
+    </label>`).join("");
+  document.querySelectorAll(".role-chip").forEach((chip) => {
+    const input = chip.querySelector("input");
+    chip.addEventListener("click", (e) => {
+      if (e.target !== input) input.checked = !input.checked;
+      chip.classList.toggle("on", input.checked);
+    });
+  });
+}
+
+function rolesSeleccionados() {
+  return Array.from(document.querySelectorAll(".role-chip input:checked")).map((i) => i.value);
+}
+
+async function cargarTrabajadores() {
+  const todos = (await dbGet("/trabajadores")) || {};
+  const filas = Object.values(todos);
+  const tbody = $("tbodyTrabajadores");
+  if (!filas.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-tabla">Todavía no hay trabajadores registrados</td></tr>`;
+    return;
+  }
+  filas.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+  tbody.innerHTML = filas.map((t) => `
+    <tr>
+      <td>${escapeHtml(t.nombre || "—")}</td>
+      <td>@${escapeHtml(t.usuario || "—")}</td>
+      <td>${(t.rolesPermitidos || []).map((r) => `<span class="rol-tag">${escapeHtml(r)}</span>`).join("") || "—"}</td>
+      <td><span class="badge-estado ${t.estado === "activo" ? "activo" : "inactivo"}">${escapeHtml(t.estado || "—")}</span></td>
+    </tr>`).join("");
+}
+
+async function crearTrabajador(e) {
+  e.preventDefault();
+  const errEl = $("errCrear"), okEl = $("okCrear");
+  errEl.classList.add("hidden"); okEl.classList.add("hidden");
+
+  const nombre = $("fNombre").value.trim();
+  const usuario = $("fUsuario").value.trim().toLowerCase();
+  const password = $("fPassword").value;
+  const roles = rolesSeleccionados();
+  const activo = $("fActivo").checked;
+
+  if (nombre.length < 3) { errEl.textContent = "Escribe el nombre completo."; errEl.classList.remove("hidden"); return; }
+  if (!/^[a-z0-9_-]{3,20}$/.test(usuario)) { errEl.textContent = "Usuario: 3–20 caracteres, solo letras/números/_/-."; errEl.classList.remove("hidden"); return; }
+  if (password.length < 6) { errEl.textContent = "La contraseña debe tener al menos 6 caracteres."; errEl.classList.remove("hidden"); return; }
+  if (roles.length === 0) { errEl.textContent = "Selecciona al menos un rol."; errEl.classList.remove("hidden"); return; }
+
+  const btn = $("btnCrear");
+  btn.disabled = true; btn.textContent = "Creando…";
+  try {
+    const uid = await crearCuenta(usuario, password, nombre);
+    const ahora = Date.now();
+    await dbSet(`/trabajadores/${uid}`, {
+      nombre, usuario, rolesPermitidos: roles,
+      estado: activo ? "activo" : "inactivo",
+      creado: ahora, actualizado: ahora
+    });
+    okEl.textContent = `Cuenta creada — @${usuario} ya puede entrar por el login principal.`;
+    okEl.classList.remove("hidden");
+    toast("Trabajador creado: " + nombre);
+    $("formCrear").reset();
+    document.querySelectorAll(".role-chip").forEach((c) => c.classList.remove("on"));
+    await cargarTrabajadores();
+  } catch (err) {
+    const code = err && err.code;
+    let msg = "No se pudo crear la cuenta.";
+    if (code === "auth/email-already-in-use") msg = "Ese usuario ya existe.";
+    else if (code === "auth/weak-password") msg = "La contraseña es muy débil.";
+    else if (code === "auth/network-request-failed") msg = "Sin conexión — revisa tu internet.";
+    errEl.textContent = msg;
+    errEl.classList.remove("hidden");
+  }
+  btn.disabled = false; btn.textContent = "Crear trabajador";
+}
+
+async function iniciar() {
+  await esperarAuthListo();
+  pintarRolesGrid();
+
+  onAuthStateChanged(async (user) => {
+    if (!user) { window.location.href = "../index.html"; return; }
+
+    let perfil;
+    try { perfil = await getWorkerProfile(user.uid); }
+    catch (e) { window.location.href = "../index.html"; return; }
+
+    if (!perfil || perfil.estado !== "activo" || !hasRole(perfil, "admin")) {
+      await logout();
+      window.location.href = "../index.html";
+      return;
+    }
+
+    $("vistaCargando").style.display = "none";
+    $("app").style.display = "block";
+    cargarTrabajadores();
+  });
+
+  $("formCrear").addEventListener("submit", crearTrabajador);
+  $("btnLogout").addEventListener("click", async () => {
+    await logout();
+    window.location.href = "../index.html";
+  });
+}
+
+iniciar();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#c67139">
+<title>Rodizio · Acceso</title>
+<link rel="icon" type="image/png" sizes="192x192" href="mesero-app/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Figtree:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/theme.css">
+<style>
+  h1,h2,h3{font-family:var(--font-heading);font-weight:400;margin:0}
+  .wrap{max-width:420px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:28px 22px}
+  .logo{width:64px;height:64px;border-radius:20px;background:var(--color-accent);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:var(--shadow-md)}
+  .logo svg{width:34px;height:34px}
+  .title{text-align:center;font-size:30px;margin-bottom:2px}
+  .sub{text-align:center;color:var(--color-neutral-600);font-size:13.5px;margin-bottom:26px}
+  .field{margin-bottom:12px}
+  .field input{width:100%;box-sizing:border-box;border:1px solid var(--color-divider);background:var(--color-neutral-100);border-radius:999px;padding:14px 18px;font-size:15px;min-height:52px;color:var(--color-text)}
+  .field input:focus{outline:2px solid var(--color-accent);outline-offset:1px}
+  .cta{width:100%;min-height:54px;border:0;border-radius:999px;font-family:var(--font-heading);font-size:17px;background:var(--color-accent);color:var(--color-bg);cursor:pointer}
+  .cta:disabled{opacity:.6;cursor:wait}
+  .err{color:#a8382a;font-size:12.5px;text-align:center;margin:12px 0 0}
+
+  .roles-title{text-align:center;font-size:22px;margin-bottom:4px}
+  .roles-sub{text-align:center;color:var(--color-neutral-600);font-size:13px;margin-bottom:20px}
+  .rol-btn{width:100%;min-height:56px;border-radius:18px;border:1px solid var(--color-divider);background:var(--color-neutral-100);color:var(--color-text);font-family:var(--font-heading);font-size:16px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
+  .rol-btn:hover{border-color:var(--color-accent)}
+  .rol-btn[disabled]{opacity:.45;cursor:not-allowed}
+  .rol-btn .tag{font-family:var(--font-body);font-size:11px;font-weight:700;background:var(--color-accent-100);color:var(--color-accent-700);border-radius:999px;padding:2px 9px}
+
+  .hidden{display:none}
+  .cargando{text-align:center;color:var(--color-neutral-600);font-size:13.5px}
+  .logout-link{display:block;text-align:center;margin-top:18px;font-size:12.5px;color:var(--color-neutral-500);background:none;border:0;cursor:pointer;text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20 L20 4" stroke="#f5ead8" stroke-width="2.4" stroke-linecap="round"/><circle cx="7.3" cy="16.7" r="3" fill="#f5ead8"/><circle cx="12" cy="12" r="3" fill="#f5ead8"/><circle cx="16.7" cy="7.3" r="3" fill="#f5ead8"/></svg></div>
+  <h1 class="title">Rodizio</h1>
+  <p class="sub" id="subTxt">Cúcuta · Sistema interno</p>
+
+  <div id="vistaCargando" class="cargando hidden">Verificando sesión…</div>
+
+  <form id="formLogin">
+    <div class="field"><input id="fUsuario" placeholder="Usuario" autocomplete="username"></div>
+    <div class="field"><input id="fPassword" type="password" placeholder="Contraseña" autocomplete="current-password"></div>
+    <button class="cta" id="btnEntrar" type="submit">Entrar</button>
+    <p class="err hidden" id="errLogin"></p>
+  </form>
+
+  <div id="vistaRoles" class="hidden">
+    <h2 class="roles-title" id="bienvenida">Bienvenido</h2>
+    <p class="roles-sub">Selecciona con qué función vas a entrar</p>
+    <div id="listaRoles"></div>
+    <button class="logout-link" id="btnCancelar">Cancelar y salir</button>
+  </div>
+</div>
+
+<script src="shared/firebase.js"></script>
+<script src="shared/util.js"></script>
+<script src="shared/roles.js"></script>
+<script type="module" src="shared/auth.js"></script>
+<script type="module">
+/* ─────────────────────────────────────────────────────────────
+   Rodizio · Login raíz — punto de entrada único del sistema.
+   Autentica con Firebase Authentication (shared/auth.js), lee el
+   perfil del trabajador en /trabajadores/{uid} (shared/roles.js) y
+   redirige a la app que le corresponde según su rol. Si tiene más
+   de un rol permitido, deja elegir con cuál entra hoy.
+   ───────────────────────────────────────────────────────────── */
+
+// Carpeta de cada app según el rol.
+const RUTA_POR_ROL = {
+  admin: "panel-admin/",
+  mesero: "mesero-app/",
+  cajero: "panel-caja/",
+  cocinero: "panel-cocina/"
+};
+const NOMBRE_ROL = { admin: "Administrador", mesero: "Mesero", cajero: "Caja", cocinero: "Cocina" };
+
+const $ = (id) => document.getElementById(id);
+
+function mostrar(id) {
+  ["formLogin", "vistaRoles", "vistaCargando"].forEach((otro) => $(otro).classList.toggle("hidden", otro !== id));
+}
+
+function mostrarError(msg) {
+  const el = $("errLogin");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+function limpiarError() {
+  $("errLogin").classList.add("hidden");
+}
+
+// Espera a que shared/auth.js (módulo ES) haya colgado sus funciones
+// en window antes de usarlas — se cargan casi al instante, pero por
+// las dudas en conexiones lentas.
+function esperarAuthListo() {
+  return new Promise((resolve) => {
+    (function chequear() {
+      if (window.login && window.onAuthStateChanged) resolve();
+      else setTimeout(chequear, 30);
+    })();
+  });
+}
+
+async function irARol(rol) {
+  const ruta = RUTA_POR_ROL[rol];
+  if (!ruta) {
+    mostrarError(`El panel de "${NOMBRE_ROL[rol] || rol}" todavía no está disponible. Habla con el administrador.`);
+    return;
+  }
+  setActiveRole(rol);
+  window.location.href = ruta;
+}
+
+async function despuesDeLogin(user) {
+  let perfil;
+  try {
+    perfil = await getWorkerProfile(user.uid);
+  } catch (e) {
+    mostrarError("No se pudo verificar tu cuenta — revisa tu conexión.");
+    mostrar("formLogin");
+    return;
+  }
+
+  if (!perfil) {
+    mostrarError("Tu cuenta no está registrada en el sistema. Contacta al administrador.");
+    await logout();
+    mostrar("formLogin");
+    return;
+  }
+  if (perfil.estado && perfil.estado !== "activo") {
+    mostrarError("Tu cuenta está desactivada. Contacta al administrador.");
+    await logout();
+    mostrar("formLogin");
+    return;
+  }
+
+  const roles = perfil.rolesPermitidos || [];
+  if (roles.length === 0) {
+    mostrarError("Tu cuenta no tiene ningún rol asignado todavía. Contacta al administrador.");
+    await logout();
+    mostrar("formLogin");
+    return;
+  }
+  if (roles.length === 1) {
+    irARol(roles[0]);
+    return;
+  }
+
+  // Varios roles: dejar elegir.
+  $("bienvenida").textContent = "Hola, " + (perfil.nombre ? perfil.nombre.split(" ")[0] : "de nuevo");
+  $("listaRoles").innerHTML = roles.map((rol) => `
+    <button class="rol-btn" data-rol="${rol}">
+      ${NOMBRE_ROL[rol] || rol}
+      ${RUTA_POR_ROL[rol] ? "" : '<span class="tag">Próximamente</span>'}
+    </button>`).join("");
+  document.querySelectorAll(".rol-btn").forEach((b) => b.onclick = () => irARol(b.dataset.rol));
+  mostrar("vistaRoles");
+}
+
+async function iniciar() {
+  await esperarAuthListo();
+  mostrar("vistaCargando");
+
+  onAuthStateChanged(async (user) => {
+    if (user) {
+      await despuesDeLogin(user);
+    } else {
+      mostrar("formLogin");
+    }
+  });
+
+  $("formLogin").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    limpiarError();
+    const usuario = $("fUsuario").value.trim();
+    const password = $("fPassword").value;
+    if (!usuario || !password) { mostrarError("Escribe tu usuario y contraseña."); return; }
+
+    const btn = $("btnEntrar");
+    btn.disabled = true; btn.textContent = "Entrando…";
+    try {
+      await login(usuario, password);
+      // onAuthStateChanged se dispara solo y sigue el flujo desde ahí.
+    } catch (err) {
+      const code = err && err.code;
+      let msg = "No se pudo iniciar sesión.";
+      if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+        msg = "Usuario o contraseña incorrectos.";
+      } else if (code === "auth/too-many-requests") {
+        msg = "Demasiados intentos — espera un momento e intenta de nuevo.";
+      } else if (code === "auth/network-request-failed") {
+        msg = "Sin conexión — revisa tu internet.";
+      }
+      mostrarError(msg);
+      btn.disabled = false; btn.textContent = "Entrar";
+    }
+  });
+
+  $("btnCancelar").addEventListener("click", async () => {
+    await logout();
+    mostrar("formLogin");
+    $("fPassword").value = "";
+  });
+}
+
+iniciar();
+</script>
+</body>
+</html>

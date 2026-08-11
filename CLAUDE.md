@@ -70,7 +70,21 @@ rodizio/
 **Notas del refactor ya hecho:**
 - `hashPin()` y `crearCuentaSiLibre()` siguen viviendo dentro de `mesero-app/index.html`, **a propósito** — son parte del login por PIN que la Fase 1 (Firebase Authentication) va a reemplazar. No tiene sentido moverlas a `shared/` para borrarlas poco después.
 - Cada `sw.js` ya precachea los 3 archivos de `shared/` (rutas relativas `../shared/...`) además de su propio cascarón, así que el offline sigue funcionando.
-- Condición para que esto siga funcionando: **las apps deben seguir sirviéndose desde el mismo dominio/hosting**, con `shared/` como carpeta hermana de cada app.
+- Condición para que esto siga funcionando: **las apps deben seguir sirviéndose desde el mismo dominio/hosting**, con `shared/` como carpeta hermana de cada app. Confirmado: se despliega todo junto vía Firebase Hosting (sitio `rodizio`), así que esta condición se cumple.
+
+## Fase 1 (Firebase Authentication) — ✅ hecha a nivel de `shared/auth.js`, pendiente de conectar a las apps
+
+`shared/auth.js` ya existe, con la configuración real del proyecto embebida, y expone: `login()`, `logout()`, `getCurrentUser()`, `onAuthStateChanged()`, `crearCuenta()`, `restablecerPasswordPropia()`.
+
+`shared/roles.js` también existe: `getWorkerProfile()`, `getRolesPermitidos()`, `setActiveRole()`/`getActiveRole()`, `hasRole()`, `hasPermission()`.
+
+**Diferencia técnica importante:** `auth.js` es el único archivo de `shared/` que se carga como módulo ES (`<script type="module" src="../shared/auth.js">`), porque el SDK de Firebase Authentication se importa desde el CDN oficial (`gstatic.com/firebasejs/12.17.1/...`). `firebase.js`, `util.js` y `roles.js` siguen siendo scripts clásicos (globales, sin `type="module"`). Dentro de `auth.js`, cada función se cuelga en `window` al final para que el resto del código (scripts clásicos) la pueda llamar igual que las demás funciones compartidas.
+
+**Limitaciones reales, ya documentadas y aceptadas conscientemente:**
+1. **Restablecer contraseña por correo no funciona.** Los trabajadores usan `usuario@rodizio.local` (correo sintético interno, nunca una bandeja real), así que Firebase no tiene a quién mandarle el link de recuperación. `restablecerPasswordPropia()` solo sirve para que el propio trabajador, ya logueado, cambie su contraseña. Resetear la de otro trabajador, hoy, requiere hacerlo manualmente desde la consola de Firebase (Authentication → usuario → Reset password) — no hay forma de automatizarlo sin backend (Admin SDK o Cloud Functions).
+2. **Crear cuentas de otros trabajadores usa una segunda instancia de Firebase** (`authSecundaria()` dentro de `auth.js`) para que el admin no pierda su propia sesión al crear una — es una limitación conocida del SDK de Firebase Auth, no un bug nuestro.
+
+**Todavía NO wireado a ninguna interfaz.** `auth.js`/`roles.js` existen y son correctos, pero ninguna app los usa todavía — `mesero-app` sigue funcionando con el login por PIN de siempre. Hay un problema de orden que hay que resolver antes de cortar ese cable: **hoy nadie puede crear una cuenta nueva en Firebase Auth**, porque `crearCuenta()` está pensado para usarse desde `panel-admin`, que todavía no existe. Si se apaga el autoregistro por PIN de `mesero-app` antes de tener `panel-admin` (aunque sea una versión mínima con solo "crear trabajador"), nadie podría dar de alta a un mesero nuevo. Recomiendo construir esa pieza mínima de `panel-admin` antes de tocar el login de `mesero-app`.
 
 ## Cómo extender
 
@@ -95,7 +109,27 @@ rodizio/
 ## Pendientes / decisiones abiertas
 
 - [ ] Alcance de `panel-cliente` — sin definir.
-- [ ] **Fase 1 — Firebase Authentication:** bloqueada hasta tener `apiKey`/`authDomain`/`projectId`/`appId` del proyecto Firebase (Project Settings → General → Tus apps). Requiere también habilitar el método de acceso "Email/Password" en Authentication → Sign-in method. Como los trabajadores tienen "usuario" y no correo, se va a generar un correo sintético tipo `usuario@rodizio.local` puramente interno para Firebase Auth — nunca visible ni usado por el trabajador.
+- [x] **Fase 1 — Firebase Authentication:** `shared/auth.js` construido con la config real, en uso por el login raíz y por `panel-admin`.
 - [x] Refactor a `shared/` (theme.css, firebase.js, util.js) — aplicado y verificado en las 3 apps existentes.
+- [x] `shared/roles.js` — construido y en uso (getWorkerProfile, hasRole, etc.).
+- [x] **Login raíz (`/index.html`)** — punto de entrada único: autentica, lee `/trabajadores/{uid}`, y redirige (o deja elegir, si tiene varios roles) hacia `mesero-app/`, `panel-caja/`, `panel-cocina/` o `panel-admin/`.
+- [x] **`panel-admin` mínimo** — crear trabajador (Firebase Auth + `/trabajadores/{uid}`) y listado de solo lectura. Protegido con guard real: sin sesión o sin rol `admin` activo → redirige al login raíz. Editar, activar/desactivar, quitar roles y restablecer contraseña de otro trabajador **NO** están implementados todavía (alcance a propósito reducido).
+- [ ] **`mesero-app`, `panel-caja` y `panel-cocina` TODAVÍA NO validan sesión** — hoy se puede entrar directo a cualquiera de las 3 sin pasar por el login raíz (bookmarks, PWA instalada, o escribiendo la URL a mano). Falta agregarles un guard con `onAuthStateChanged()` que redirija a `/` si no hay sesión — **ya es seguro hacerlo ahora**, porque `panel-admin` ya puede dar de alta trabajadores nuevos.
+- [ ] `mesero-app` sigue con el login por PIN de siempre, sin conectar al nuevo sistema — siguiente paso lógico: reemplazarlo por el guard de sesión + rol `mesero`, igual que se hizo en `panel-admin`.
 - [ ] Revisar `"orientation": "portrait"` en el manifest de `mesero-app` ahora que también se instala en PC (los paneles ya usan `"any"`).
-- [ ] Resto de fases del `claude.md` del compañero: roles (`shared/roles.js`), mesas (`shared/mesas.js`), pedidos con estado por línea (`shared/pedidos.js`), QR (`shared/qr.js`), `panel-admin/`, `panel-cliente/`, cierre de las reglas abiertas de Firebase — todo depende de completar la Fase 1 primero.
+- [ ] Resto de fases del plan: `shared/mesas.js`, `shared/pedidos.js` (con estado por línea), `shared/qr.js`, `panel-cliente/`, cerrar las reglas abiertas de Firebase (Fase 9).
+- [ ] **Decisión pendiente sobre restablecer contraseña de otro trabajador** (sección 36): sin backend, la única forma hoy es manual desde la consola de Firebase.
+
+## Despliegue
+
+**Firebase Hosting**, sitio `rodizio` dentro del mismo proyecto Firebase (`rodizio-cucuta-08`) que ya usan RTDB y Authentication — todo bajo un solo proyecto. Configurado con `firebase.json` (`"public": "."`, sirve el repo tal cual, sin mover nada a una carpeta `public/` aparte) y `.firebaserc`. Deploy: `firebase deploy --only hosting:rodizio` → publica en `https://rodizio.web.app`. El login raíz (`/index.html`) es el punto de entrada; cada app sigue siendo también una PWA instalable por separado.
+
+## Cómo crear la primera cuenta de prueba (bootstrap manual)
+
+No hay `panel-admin` todavía, así que la primera cuenta se crea a mano:
+1. Firebase Console → Authentication → Users → "Add user". Email: `TUUSUARIO@rodizio.local` (reemplaza TUUSUARIO), cualquier contraseña. Copia el UID que te muestra.
+2. Firebase Console → Realtime Database → en la raíz, crea manualmente el nodo `/trabajadores/{ESE_UID}` con:
+   ```json
+   { "nombre": "Tu Nombre", "usuario": "TUUSUARIO", "rolesPermitidos": ["admin", "mesero"], "estado": "activo", "creado": 1690000000000 }
+   ```
+3. Entra a `/index.html` con usuario `TUUSUARIO` y esa contraseña.

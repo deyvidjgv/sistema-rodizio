@@ -35,6 +35,6 @@ function crearBeep(frecuencias) {
         o.connect(g); g.connect(audioCtx.destination);
         o.start(t0 + i * 0.16); o.stop(t0 + i * 0.16 + 0.24);
       });
-    } catch (e) {}
+    } catch (e) { }
   };
 }

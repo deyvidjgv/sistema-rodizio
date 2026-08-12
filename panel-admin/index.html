@@ -43,6 +43,10 @@
   .field input{width:100%;box-sizing:border-box;border:1px solid var(--color-divider);background:var(--color-bg);border-radius:12px;padding:12px 15px;font-size:14.5px;color:var(--color-text)}
   .field input:focus{outline:2px solid var(--color-accent);outline-offset:1px}
 
+  .panel-links{display:flex;gap:10px;flex-wrap:wrap}
+  .panel-link{flex:1;min-width:120px;text-align:center;min-height:50px;display:flex;align-items:center;justify-content:center;border-radius:14px;border:1px solid var(--color-divider);background:var(--color-neutral-100);color:var(--color-text);font-family:var(--font-heading);font-size:15px;text-decoration:none}
+  .panel-link:hover{border-color:var(--color-accent)}
+
   .roles-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:6px}
   .role-chip{display:flex;align-items:center;gap:8px;border:1px solid var(--color-divider);background:var(--color-bg);border-radius:12px;padding:10px 13px;font-size:13.5px;font-weight:600;cursor:pointer;user-select:none}
   .role-chip input{margin:0}
@@ -84,6 +88,16 @@
 </header>
 
 <main>
+  <section class="card">
+    <h2>Acceso a paneles</h2>
+    <p class="sub">Como admin puedes entrar a cualquier panel sin necesitar el rol específico asignado.</p>
+    <div class="panel-links">
+      <a class="panel-link" href="../mesero-app/">Mesero</a>
+      <a class="panel-link" href="../panel-caja/">Caja</a>
+      <a class="panel-link" href="../panel-cocina/">Cocina</a>
+    </div>
+  </section>
+
   <section class="card">
     <h2>Crear trabajador</h2>
     <p class="sub">Se crea la cuenta en Firebase Authentication y su perfil en /trabajadores.</p>
@@ -169,9 +183,11 @@ function rolesSeleccionados() {
 }
 
 async function cargarTrabajadores() {
-  const todos = (await dbGet("/trabajadores")) || {};
-  const filas = Object.values(todos);
   const tbody = $("tbodyTrabajadores");
+  let todos;
+  try { todos = (await dbGet("/trabajadores")) || {}; }
+  catch (e) { tbody.innerHTML = `<tr><td colspan="4" class="empty-tabla">No se pudo cargar la lista — revisa tu conexión y recarga.</td></tr>`; return; }
+  const filas = Object.values(todos);
   if (!filas.length) {
     tbody.innerHTML = `<tr><td colspan="4" class="empty-tabla">Todavía no hay trabajadores registrados</td></tr>`;
     return;

@@ -27,11 +27,11 @@ import {
 const firebaseConfig = {
   apiKey: "AIzaSyAsxNjoeKahZIuMRUekwnZyY1IVeAbeqC0",
   authDomain: "rodizio-eb49a.firebaseapp.com",
+  databaseURL: "https://rodizio-eb49a-default-rtdb.firebaseio.com/",
   projectId: "rodizio-eb49a",
   storageBucket: "rodizio-eb49a.firebasestorage.app",
   messagingSenderId: "710683316030",
-  appId: "1:710683316030:web:d9078f4fd7f0eda1d4a66f",
-  measurementId: "G-BTC6SY5S29"
+  appId: "1:710683316030:web:d9078f4fd7f0eda1d4a66f"
 };
 
 const app = initializeApp(firebaseConfig);

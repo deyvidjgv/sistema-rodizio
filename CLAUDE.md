@@ -28,7 +28,9 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
   total         123400
   estado        "enviado" | "preparacion" | "listo" | "entregado"
   ts            1690000000000   # creación
-  tsCambio      1690000000000   # último cambio de estado
+  tsCambio      1690000000000   # último cambio de estado (lo pone panel-cocina)
+  pagado        true                             # opcional — lo pone panel-caja al cobrar
+  tsPago        1690000000000                    # opcional — timestamp del cobro
 
 /contadores/{YYYY-MM-DD}
   <number>       # último correlativo del día, escritura con ETag condicional (evita choques)
@@ -46,7 +48,12 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
   creado
 ```
 
-**Flujo de un pedido:** mesero envía (`enviado`) → cocina pasa a `preparacion` → `listo` → mesero marca `entregado`. Las 3 apps escuchan `/pedidos` en vivo por SSE, así que un cambio de estado se ve al instante en todas las pantallas sin refrescar.
+**Flujo de un pedido:** mesero envía (`enviado`) → cocina pasa a `preparacion` → `listo` → mesero marca `entregado` → caja confirma el cobro (`pagado: true`, no cambia `estado`). Las 3 apps escuchan `/pedidos` en vivo por SSE, así que un cambio se ve al instante en todas las pantallas sin refrescar.
+
+**División de responsabilidades por panel** (a propósito, no se pisan):
+- `mesero-app`: crea el pedido (`enviado`) y lo marca `entregado` cuando lo sirve en la mesa.
+- `panel-cocina`: avanza `enviado` → `preparacion` → `listo`. No toca cobros.
+- `panel-caja`: solo ve pedidos ya `entregado` y confirma el pago (`pagado`/`tsPago`). No avanza el estado del pedido — eso es trabajo de cocina.
 
 ## Convenciones de código
 
@@ -55,6 +62,7 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
 - Sesión: **una sola vez**, en el login raíz (`/index.html`), con Firebase Authentication. Cada app (`mesero-app`, `panel-caja`, `panel-cocina`, `panel-admin`) solo trae un *guard* (`onAuthStateChanged()` + `getWorkerProfile()` + `hasRole()`) que verifica sesión + rol correcto + `estado === "activo"` en cada carga, y redirige a `/` si algo falla — nunca tienen su propio formulario de login. Así, desactivar o borrar un trabajador en `/trabajadores` lo saca de todas las apps en la siguiente carga, sin importar si ya había iniciado sesión antes.
 - Registro de cuenta **no** inicia sesión automáticamente — el flujo intencional es: registrar → volver a login → la persona entra ella misma con su usuario y contraseña.
 - Service worker por app: cachea el cascarón (HTML/CSS/JS/iconos) para offline + instalable. Las peticiones a `firebaseio.com` **nunca** se cachean — siempre deben ir en vivo.
+- `mesero-app` ya **no** tiene una pantalla bloqueante de "elige tu mesa"/turno — entra directo al menú tras el login. La mesa se elige/cambia desde el ícono ☰ (menú hamburguesa) en la barra superior, que abre un drawer con la grilla de mesas + "Salir". Sin mesa elegida, la pestaña Menú muestra un aviso invitando a elegir una en vez del listado de platos.
 
 ## Estructura de carpetas — ✅ ya aplicada
 
@@ -65,7 +73,7 @@ rodizio/
 │   ├── firebase.js      dbUrl / dbGet / dbPush / dbSet / dbUpdate / dbDelete / escucharSSE / aplicarEventoSSE / siguienteCodigo
 │   └── util.js          escapeHtml, fmtCop (formato COP), crearBeep() (fábrica de tonos Web Audio)
 ├── mesero-app/
-│   ├── index.html       login, mesa, menú, comanda, pedidos del turno
+│   ├── index.html       menú, comanda, pedidos — mesa se elige/cambia desde el menú ☰
 │   ├── menu.js           159 platos/bebidas + SUGERENCIAS por categoría
 │   ├── manifest.webmanifest, sw.js, icon-192.png, icon-512.png, icon-512-maskable.png
 ├── panel-caja/            tablero + "Entregados hoy" + exportar Excel (ExcelJS vía CDN)
@@ -130,7 +138,15 @@ rodizio/
 
 ## Despliegue
 
-**Firebase Hosting**, sitio `rodizio` dentro del mismo proyecto Firebase (`rodizio-cucuta-08`) que ya usan RTDB y Authentication — todo bajo un solo proyecto. Configurado con `firebase.json` (`"public": "."`, sirve el repo tal cual, sin mover nada a una carpeta `public/` aparte) y `.firebaserc`. Deploy: `firebase deploy --only hosting:rodizio` → publica en `https://rodizio.web.app`. El login raíz (`/index.html`) es el punto de entrada; cada app sigue siendo también una PWA instalable por separado.
+**Firebase Hosting**, sitio `rodizio` dentro del mismo proyecto Firebase (`rodizio-eb49a`) que ya usan RTDB y Authentication — todo bajo un solo proyecto. Configurado con `firebase.json` (`"public": "."`, sirve el repo tal cual, sin mover nada a una carpeta `public/` aparte) y `.firebaserc`. Deploy: `firebase deploy --only hosting:rodizio` → publica en `https://rodizio.web.app`. El login raíz (`/index.html`) es el punto de entrada; cada app sigue siendo también una PWA instalable por separado.
+
+**Nota histórica:** el proyecto original (`rodizio-cucuta-08`) fue suspendido por Google Cloud Platform (Trust & Safety) el 11 ago 2026, muy probablemente por abuso de terceros aprovechando las reglas de RTDB abiertas (ver "Limitaciones conocidas" #1). Se migró todo a `rodizio-eb49a` con `DB_URL` (`shared/firebase.js`) y `firebaseConfig` (`shared/auth.js`) actualizados. Si el proyecto viejo se reactiva por la apelación, **no volver a usarlo** sin antes cerrar las reglas de RTDB — la vulnerabilidad que probablemente causó la suspensión sigue sin corregir en el proyecto nuevo también.
+
+**Pendiente manual para que `rodizio-eb49a` quede operativo** (código ya listo, falta esto en la consola de Firebase, no se puede automatizar desde el repo):
+1. Authentication → Sign-in method → habilitar **Email/Password** (si no está habilitado, todo login falla con `auth/operation-not-allowed`).
+2. `/trabajadores` está vacío en el proyecto nuevo — recrear la cuenta admin con el botón de bootstrap en `/index.html` (ver sección siguiente), o a mano.
+3. `.firebaserc` no existe en el repo — antes del primer `firebase deploy` en este proyecto, correr `firebase use --add` y seleccionar `rodizio-eb49a`. Si se usa Hosting, también crear el sitio de Hosting dentro del proyecto nuevo desde la consola (Hosting → Comenzar) antes del primer deploy.
+4. Reglas de RTDB del proyecto nuevo: revisar que no hayan quedado en modo "prueba" con vencimiento a 30 días (default de Firebase al crear la base) — igual siguen abiertas hasta que se aborde la Fase 9, pero conviene no dejarlas expirar a "todo denegado" sin darse cuenta.
 
 ## Cómo crear la primera cuenta de admin
 

@@ -150,8 +150,9 @@
    uno de los dos —o el mesero desde su celular— cambia un estado.
    Este panel se queda solo con lo esencial para cocinar: el tablero
    y la franja de confirmación de entregados, sin reportes ni estadísticas.
-   Sesión: guard de Firebase Authentication + rol "cocinero" (ver
-   shared/auth.js y shared/roles.js) — el login ocurre en el login raíz
+   Sesión: guard de Firebase Authentication + rol "cocinero" (o "admin",
+   que pasa el guard de cualquier panel) — ver shared/auth.js y
+   shared/roles.js. El login ocurre en el login raíz
    (/index.html); este panel solo verifica y, si falla, redirige ahí.
    ───────────────────────────────────────────────────────────── */
 // DB_URL / dbUrl / dbUpdate / escucharSSE / aplicarEventoSSE / escapeHtml /
@@ -286,7 +287,7 @@ async function iniciar() {
     let perfil;
     try { perfil = await getWorkerProfile(user.uid); }
     catch (e) { window.location.href = "../index.html"; return; }
-    if (!perfil || perfil.estado !== "activo" || !hasRole(perfil, "cocinero")) {
+    if (!perfil || perfil.estado !== "activo" || (!hasRole(perfil, "cocinero") && !hasRole(perfil, "admin"))) {
       await logout();
       window.location.href = "../index.html";
       return;

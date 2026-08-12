@@ -62,6 +62,7 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
 - Sesión: **una sola vez**, en el login raíz (`/index.html`), con Firebase Authentication. Cada app (`mesero-app`, `panel-caja`, `panel-cocina`, `panel-admin`) solo trae un *guard* (`onAuthStateChanged()` + `getWorkerProfile()` + `hasRole()`) que verifica sesión + rol correcto + `estado === "activo"` en cada carga, y redirige a `/` si algo falla — nunca tienen su propio formulario de login. Así, desactivar o borrar un trabajador en `/trabajadores` lo saca de todas las apps en la siguiente carga, sin importar si ya había iniciado sesión antes.
 - Registro de cuenta **no** inicia sesión automáticamente — el flujo intencional es: registrar → volver a login → la persona entra ella misma con su usuario y contraseña.
 - Service worker por app: cachea el cascarón (HTML/CSS/JS/iconos) para offline + instalable. Las peticiones a `firebaseio.com` **nunca** se cachean — siempre deben ir en vivo.
+- `mesero-app` ya **no** tiene una pantalla bloqueante de "elige tu mesa"/turno — entra directo al menú tras el login. La mesa se elige/cambia desde el ícono ☰ (menú hamburguesa) en la barra superior, que abre un drawer con la grilla de mesas + "Salir". Sin mesa elegida, la pestaña Menú muestra un aviso invitando a elegir una en vez del listado de platos.
 
 ## Estructura de carpetas — ✅ ya aplicada
 
@@ -72,7 +73,7 @@ rodizio/
 │   ├── firebase.js      dbUrl / dbGet / dbPush / dbSet / dbUpdate / dbDelete / escucharSSE / aplicarEventoSSE / siguienteCodigo
 │   └── util.js          escapeHtml, fmtCop (formato COP), crearBeep() (fábrica de tonos Web Audio)
 ├── mesero-app/
-│   ├── index.html       login, mesa, menú, comanda, pedidos del turno
+│   ├── index.html       menú, comanda, pedidos — mesa se elige/cambia desde el menú ☰
 │   ├── menu.js           159 platos/bebidas + SUGERENCIAS por categoría
 │   ├── manifest.webmanifest, sw.js, icon-192.png, icon-512.png, icon-512-maskable.png
 ├── panel-caja/            tablero + "Entregados hoy" + exportar Excel (ExcelJS vía CDN)

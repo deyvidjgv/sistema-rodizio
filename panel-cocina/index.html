@@ -82,10 +82,16 @@
 
   .banner{max-width:1400px;margin:0 auto 14px;padding:11px 16px;border-radius:16px;background:var(--color-accent-100);border:1px solid var(--color-accent-300);color:var(--color-accent-700);font-size:12.5px;display:none;align-items:center;gap:8px}
   .banner.show{display:flex}
+
+  .cargando{text-align:center;color:var(--color-neutral-600);padding:60px 20px}
+  .logout{border:1px solid var(--color-divider);background:var(--color-neutral-100);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:600;color:var(--color-neutral-700);cursor:pointer}
 </style>
 </head>
 <body>
 
+<div id="vistaCargando" class="cargando">Verificando sesión…</div>
+
+<div id="app" style="display:none">
 <header>
   <div class="headwrap">
     <div class="brand">
@@ -102,6 +108,7 @@
     <button class="sound-btn" id="soundBtn" data-on="1" title="Silenciar aviso de nuevo pedido">
       <svg id="soundIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
     </button>
+    <button class="logout" id="btnLogout">Salir</button>
   </div>
 </header>
 
@@ -128,9 +135,12 @@
   <h3>Recién entregados</h3>
   <div class="entregados-chips" id="entregadosChips"></div>
 </div>
+</div>
 
 <script src="../shared/firebase.js"></script>
 <script src="../shared/util.js"></script>
+<script src="../shared/roles.js"></script>
+<script type="module" src="../shared/auth.js"></script>
 <script>
 /* ─────────────────────────────────────────────────────────────
    Rodizio · Panel de cocina — vanilla JS, sin build, un solo archivo.
@@ -140,6 +150,9 @@
    uno de los dos —o el mesero desde su celular— cambia un estado.
    Este panel se queda solo con lo esencial para cocinar: el tablero
    y la franja de confirmación de entregados, sin reportes ni estadísticas.
+   Sesión: guard de Firebase Authentication + rol "cocinero" (ver
+   shared/auth.js y shared/roles.js) — el login ocurre en el login raíz
+   (/index.html); este panel solo verifica y, si falla, redirige ahí.
    ───────────────────────────────────────────────────────────── */
 // DB_URL / dbUrl / dbUpdate / escucharSSE / aplicarEventoSSE / escapeHtml /
 // fmtCop / crearBeep vienen de ../shared/firebase.js y ../shared/util.js
@@ -255,8 +268,42 @@ function tickClock() {
   document.getElementById("clock").textContent = d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
 }
 setInterval(() => { tickClock(); render(); }, 20000);
-tickClock();
-conectar();
+
+/* ── Guard de sesión ── */
+function esperarAuthListo() {
+  return new Promise((resolve) => {
+    (function chequear() {
+      if (window.onAuthStateChanged && window.logout) resolve();
+      else setTimeout(chequear, 30);
+    })();
+  });
+}
+
+async function iniciar() {
+  await esperarAuthListo();
+  onAuthStateChanged(async (user) => {
+    if (!user) { window.location.href = "../index.html"; return; }
+    let perfil;
+    try { perfil = await getWorkerProfile(user.uid); }
+    catch (e) { window.location.href = "../index.html"; return; }
+    if (!perfil || perfil.estado !== "activo" || !hasRole(perfil, "cocinero")) {
+      await logout();
+      window.location.href = "../index.html";
+      return;
+    }
+    document.getElementById("vistaCargando").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    tickClock();
+    conectar();
+  });
+}
+
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  await logout();
+  window.location.href = "../index.html";
+});
+
+iniciar();
 </script>
 
 <script>

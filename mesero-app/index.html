@@ -26,23 +26,13 @@
   @keyframes rzToast{0%{opacity:0;transform:translate(-50%,10px)}10%,90%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,10px)}}
   #app{max-width:520px;margin:0 auto;min-height:100dvh;position:relative;display:flex;flex-direction:column}
 
-  /* ── Auth ── */
+  /* ── Auth (pantalla de verificación de sesión) ── */
   .auth-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;padding:28px 22px}
   .auth-logo{width:64px;height:64px;border-radius:20px;background:var(--color-accent);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:var(--shadow-md)}
   .auth-logo svg{width:34px;height:34px}
   .auth-title{text-align:center;font-size:30px;margin-bottom:2px}
   .auth-sub{text-align:center;color:var(--color-neutral-600);font-size:13.5px;margin-bottom:22px}
-  .seg{display:flex;gap:4px;background:var(--color-surface);border-radius:999px;padding:4px;margin-bottom:20px}
-  .seg button{flex:1;min-height:46px;border-radius:999px;border:0;font-size:14px;font-weight:600;background:transparent;color:var(--color-neutral-700)}
-  .seg button.on{background:var(--color-bg);color:var(--color-text);box-shadow:var(--shadow-sm)}
-  .field{margin-bottom:12px}
-  .field input{width:100%;border:1px solid var(--color-divider);background:var(--color-neutral-100);border-radius:999px;padding:14px 18px;font-size:15px;min-height:52px;color:var(--color-text)}
-  .field input:focus{outline:2px solid var(--color-accent);outline-offset:1px}
-  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
-  .chip{display:flex;align-items:center;gap:7px;border:1px solid var(--color-divider);background:var(--color-neutral-100);border-radius:999px;padding:7px 13px 7px 7px;font-size:13px;font-weight:600}
-  .chip .av{width:22px;height:22px;border-radius:50%;background:var(--color-accent-300);color:var(--color-accent-700);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
   .cta{width:100%;min-height:54px;border:0;border-radius:999px;font-family:var(--font-heading);font-size:17px;background:var(--color-accent);color:var(--color-bg)}
-  .err{color:#a8382a;font-size:12.5px;text-align:center;margin:10px 0 0}
 
   /* ── Turno / mesa ── */
   .turno-wrap{flex:1;display:flex;flex-direction:column;padding:26px 22px;justify-content:center}
@@ -140,11 +130,17 @@
 
 <script src="../shared/firebase.js"></script>
 <script src="../shared/util.js"></script>
+<script src="../shared/roles.js"></script>
+<script type="module" src="../shared/auth.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
    Rodizio · Meseros — vanilla JS, un solo archivo, sin build.
    Los pedidos viven en Firebase Realtime Database (REST + SSE),
    así que se sincronizan al instante con el Panel de cocina.
+   Sesión: guard de Firebase Authentication + rol "mesero" (ver
+   shared/auth.js y shared/roles.js) — el login en sí ocurre en el
+   login raíz (/index.html); esta app solo verifica y, si falla,
+   redirige de vuelta ahí.
    ═══════════════════════════════════════════════════════════════ */
 
 /* ── Menú completo de Rodizio Cúcuta ── */
@@ -351,75 +347,20 @@ const ESTADOS = ["enviado", "preparacion", "listo", "entregado"];
 
 /* ── Firebase Realtime Database — REST + SSE, sin SDK ni apiKey ──
    DB_URL / dbUrl / dbGet / dbPush / dbUpdate / escucharSSE /
-   aplicarEventoSSE / siguienteCodigo vienen de ../shared/firebase.js
-   Nota: hashPin/crearCuentaSiLibre se quedan aquí (no en shared/) a
-   propósito — son parte del login por PIN que la Fase 1 del proyecto
-   va a reemplazar por Firebase Authentication real. No tiene sentido
-   reubicar código que está a punto de borrarse. ── */
+   aplicarEventoSSE / siguienteCodigo vienen de ../shared/firebase.js ── */
 
-// El PIN nunca se guarda ni se envía en texto plano — se hashea en el
-// propio celular con SHA-256 antes de tocar la red.
-async function hashPin(pin) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pin));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-// Crea la cuenta del mesero en /meseros/{usuario} solo si nadie se le
-// adelantó — usa el mismo truco de ETag que el contador de códigos, para
-// que dos registros simultáneos con el mismo usuario no se pisen.
-async function crearCuentaSiLibre(usuario, datos) {
-  const path = `/meseros/${usuario}`;
-  const getRes = await fetch(dbUrl(path), { headers: { "X-Firebase-ETag": "true" } });
-  const etag = getRes.headers.get("ETag");
-  const existente = await getRes.json();
-  if (existente) return false;
-  const putRes = await fetch(dbUrl(path), {
-    method: "PUT",
-    headers: etag ? { "if-match": etag } : {},
-    body: JSON.stringify(datos)
-  });
-  return putRes.status === 200;
-}
-
-/* ── Sesión y "recordados" — SOLO datos locales al dispositivo.
-   Las cuentas (usuario + PIN hasheado) viven en Firebase en /meseros;
-   este celular únicamente recuerda con qué usuarios YA se inició sesión
-   aquí, para mostrarlos como accesos rápidos — nunca la lista completa
-   de meseros del restaurante, así nadie ve ni toca el perfil de otro. ── */
-const KEY_RECORDADOS = "rodizio_dispositivo_v1";
-const KEY_SESION = "rodizio_sesion_v1";
-const leerJSON = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch (e) { return def; } };
-const escribirJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 // escapeHtml viene de ../shared/util.js. "cop" es solo un alias local
 // hacia fmtCop (mismo shared/util.js) para no tocar los usos de cop(...)
 // repartidos por el resto de este archivo.
 const cop = fmtCop;
 
-function leerRecordados() { return leerJSON(KEY_RECORDADOS, []); }
-function recordarEnDispositivo(usuario, nombre) {
-  let lista = leerRecordados().filter(c => c.usuario !== usuario);
-  lista.unshift({ usuario, nombre });
-  escribirJSON(KEY_RECORDADOS, lista.slice(0, 5));
-}
-
 /* ── Estado de la app ── */
 const state = {
-  recordados: leerRecordados(),
-  sesion: null, authModo: "login", authError: "", authCargando: false,
-  fNombre: "", fUsuario: "", fPin: "", fPin2: "",
+  cargandoSesion: true, perfil: null, uid: null,
   mesero: "", mesa: null, turnoAbierto: false, mesaBorrador: null,
   tab: "menu", cat: CATS[0], carrito: [],
   comandaAbierta: false, pedidos: {}, conectado: false, toast: ""
 };
-
-(function initSesion() {
-  const sesion = leerJSON(KEY_SESION, null);
-  if (sesion && sesion.usuario) {
-    state.sesion = sesion; state.mesero = sesion.nombre; state.turnoAbierto = true;
-  } else if (sesion) {
-    try { localStorage.removeItem(KEY_SESION); } catch (e) {}
-  }
-})();
 
 function setState(patch) { Object.assign(state, patch); render(); }
 function aviso(t) { setState({ toast: t }); clearTimeout(window.__toastT); window.__toastT = setTimeout(() => setState({ toast: "" }), 2600); }
@@ -477,64 +418,43 @@ function avisarListo(p) {
   }
 }
 
-/* ── Auth — las cuentas viven en Firebase (/meseros/{usuario}); el PIN
-   viaja siempre hasheado, nunca en texto plano. ── */
-function usuarioValido(u) { return /^[a-z0-9_-]{3,20}$/.test(u); }
-
-async function registrar() {
-  const nombre = state.fNombre.trim();
-  const usuario = state.fUsuario.trim().toLowerCase();
-  if (nombre.length < 3) return setState({ authError: "Escribe tu nombre completo." });
-  if (!usuarioValido(usuario)) return setState({ authError: "Usuario: 3–20 caracteres, solo letras, números, \"_\" o \"-\"." });
-  if (!/^\d{4}$/.test(state.fPin)) return setState({ authError: "El PIN debe ser de 4 dígitos." });
-  if (state.fPin !== state.fPin2) return setState({ authError: "Los PIN no coinciden." });
-  setState({ authCargando: true, authError: "" });
-  try {
-    const pinHash = await hashPin(state.fPin);
-    const creada = await crearCuentaSiLibre(usuario, { nombre, pinHash, creado: Date.now() });
-    if (!creada) { setState({ authCargando: false, authError: "Ese usuario ya está registrado." }); return; }
-    // No inicia sesión automáticamente — vuelve a la pestaña de login para
-    // que el mesero entre con su usuario y PIN recién creados. Sí lo deja
-    // como acceso rápido en este celular para que se vea que quedó creado.
-    recordarEnDispositivo(usuario, nombre);
-    setState({
-      recordados: leerRecordados(), authCargando: false, authModo: "login", authError: "",
-      fUsuario: usuario, fNombre: "", fPin: "", fPin2: ""
-    });
-    aviso("Cuenta creada · Ahora inicia sesión, " + nombre.split(" ")[0]);
-  } catch (e) {
-    setState({ authCargando: false, authError: "No se pudo crear la cuenta — revisa tu conexión." });
-  }
-}
-
-async function ingresar() {
-  const usuario = state.fUsuario.trim().toLowerCase();
-  if (!usuario) return setState({ authError: "Escribe tu usuario." });
-  if (!/^\d{4}$/.test(state.fPin)) return setState({ authError: "El PIN debe ser de 4 dígitos." });
-  setState({ authCargando: true, authError: "" });
-  try {
-    const cuenta = await dbGet(`/meseros/${usuario}`);
-    if (!cuenta) { setState({ authCargando: false, authError: "No encontramos ese usuario. ¿Quieres registrarte?" }); return; }
-    const pinHash = await hashPin(state.fPin);
-    if (pinHash !== cuenta.pinHash) { setState({ authCargando: false, authError: "PIN incorrecto." }); return; }
-    entrar(usuario, cuenta.nombre);
-    aviso("Hola de nuevo, " + cuenta.nombre.split(" ")[0]);
-  } catch (e) {
-    setState({ authCargando: false, authError: "No se pudo verificar — revisa tu conexión." });
-  }
-}
-function entrar(usuario, nombre) {
-  const sesion = { usuario, nombre };
-  escribirJSON(KEY_SESION, sesion);
-  recordarEnDispositivo(usuario, nombre);
-  setState({
-    recordados: leerRecordados(), sesion, mesero: nombre, authError: "", authCargando: false,
-    fNombre: "", fUsuario: "", fPin: "", fPin2: "", turnoAbierto: true, mesaBorrador: null
+/* ── Auth — sesión de Firebase Authentication verificada contra el rol
+   "mesero" en /trabajadores/{uid} (ver shared/auth.js y shared/roles.js).
+   El login en sí ocurre en el login raíz (/index.html); esta app solo
+   valida en cada carga y expulsa si no hay sesión, el perfil no existe,
+   está inactivo, o no tiene el rol "mesero". ── */
+function esperarAuthListo() {
+  return new Promise((resolve) => {
+    (function chequear() {
+      if (window.onAuthStateChanged && window.logout) resolve();
+      else setTimeout(chequear, 30);
+    })();
   });
 }
-function cerrarSesion() {
-  try { localStorage.removeItem(KEY_SESION); } catch (e) {}
-  setState({ sesion: null, mesero: "", mesa: null, carrito: [], comandaAbierta: false, turnoAbierto: false, tab: "menu", authModo: "login", authError: "", fPin: "", fPin2: "" });
+
+async function salir() {
+  await logout();
+  window.location.href = "../index.html";
+}
+
+async function iniciarSesion() {
+  await esperarAuthListo();
+  onAuthStateChanged(async (user) => {
+    if (!user) { window.location.href = "../index.html"; return; }
+    let perfil;
+    try { perfil = await getWorkerProfile(user.uid); }
+    catch (e) { window.location.href = "../index.html"; return; }
+    if (!perfil || perfil.estado !== "activo" || !hasRole(perfil, "mesero")) {
+      await logout();
+      window.location.href = "../index.html";
+      return;
+    }
+    setState({
+      cargandoSesion: false, perfil, uid: user.uid, mesero: perfil.nombre,
+      turnoAbierto: true, mesaBorrador: null
+    });
+    conectarPedidos();
+  });
 }
 
 /* ── Carrito ── */
@@ -559,7 +479,7 @@ async function enviar() {
   const codigo = await siguienteCodigo();
   const pedido = {
     codigo, mesa: state.mesa, mesero: state.mesero,
-    meseroUsuario: state.sesion ? state.sesion.usuario : "",
+    meseroUsuario: state.perfil ? state.perfil.usuario : "",
     lineas, total: lineas.reduce((s, l) => s + l.precio * l.qty, 0),
     estado: "enviado", ts: Date.now()
   };
@@ -577,7 +497,7 @@ function marcarServido(id) { dbUpdate(`/pedidos/${id}`, { estado: "entregado", t
 /* ═══════════ RENDER ═══════════ */
 function render() {
   const el = document.getElementById("app");
-  if (!state.sesion) { el.innerHTML = renderAuth(); bindAuth(); return; }
+  if (state.cargandoSesion) { el.innerHTML = renderCargando(); return; }
   if (state.turnoAbierto) { el.innerHTML = renderTurno(); bindTurno(); return; }
   el.innerHTML = renderApp();
   bindApp();
@@ -589,45 +509,13 @@ function render() {
   }
 }
 
-function renderAuth() {
-  const esReg = state.authModo === "registro";
+function renderCargando() {
   return `
   <div class="auth-wrap">
     <div class="auth-logo"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20 L20 4" stroke="#f5ead8" stroke-width="2.4" stroke-linecap="round"/><circle cx="7.3" cy="16.7" r="3" fill="#f5ead8"/><circle cx="12" cy="12" r="3" fill="#f5ead8"/><circle cx="16.7" cy="7.3" r="3" fill="#f5ead8"/></svg></div>
     <h1 class="auth-title">Rodizio</h1>
-    <p class="auth-sub">Toma de pedidos para meseros</p>
-    <div class="seg">
-      <button id="tabLogin" class="${!esReg ? "on" : ""}">Entrar</button>
-      <button id="tabReg" class="${esReg ? "on" : ""}">Crear cuenta</button>
-    </div>
-    ${esReg ? `
-      <div class="field"><input id="fNombre" placeholder="Nombre completo" value="${escapeHtml(state.fNombre)}"></div>
-      <div class="field"><input id="fUsuario" placeholder="Usuario" value="${escapeHtml(state.fUsuario)}"></div>
-      <div class="field"><input id="fPin" placeholder="PIN de 4 dígitos" inputmode="numeric" value="${escapeHtml(state.fPin)}"></div>
-      <div class="field"><input id="fPin2" placeholder="Confirma tu PIN" inputmode="numeric" value="${escapeHtml(state.fPin2)}"></div>
-    ` : `
-      ${state.recordados.length ? `<div class="chips">${state.recordados.map(c => `<button class="chip" data-user="${escapeHtml(c.usuario)}"><span class="av">${escapeHtml((c.nombre || "?").charAt(0).toUpperCase())}</span>@${escapeHtml(c.usuario)}</button>`).join("")}</div>` : ""}
-      <div class="field"><input id="fUsuario" placeholder="Usuario" value="${escapeHtml(state.fUsuario)}"></div>
-      <div class="field"><input id="fPin" placeholder="PIN de 4 dígitos" inputmode="numeric" value="${escapeHtml(state.fPin)}"></div>
-    `}
-    <button class="cta" id="btnAuth" ${state.authCargando ? "disabled" : ""}>${state.authCargando ? "Verificando…" : (esReg ? "Crear cuenta" : "Entrar")}</button>
-    ${state.authError ? `<p class="err">${escapeHtml(state.authError)}</p>` : ""}
+    <p class="auth-sub">Verificando sesión…</p>
   </div>`;
-}
-function bindAuth() {
-  document.getElementById("tabLogin").onclick = () => setState({ authModo: "login", authError: "" });
-  document.getElementById("tabReg").onclick = () => setState({ authModo: "registro", authError: "" });
-  // Los campos de texto NO disparan render() en cada tecla — reconstruir el
-  // DOM mientras el usuario escribe le quita el foco y esconde el teclado
-  // en móvil. En vez de eso, mutamos el estado en silencio y dejamos que el
-  // propio <input> siga mostrando lo que el usuario tecleó.
-  const limpiarError = () => { state.authError = ""; const e = document.querySelector(".err"); if (e) e.remove(); };
-  const fu = document.getElementById("fUsuario"); if (fu) fu.oninput = e => { state.fUsuario = e.target.value; limpiarError(); };
-  const fp = document.getElementById("fPin"); if (fp) fp.oninput = e => { const v = e.target.value.replace(/\D/g, "").slice(0, 4); e.target.value = v; state.fPin = v; limpiarError(); };
-  const fp2 = document.getElementById("fPin2"); if (fp2) fp2.oninput = e => { const v = e.target.value.replace(/\D/g, "").slice(0, 4); e.target.value = v; state.fPin2 = v; limpiarError(); };
-  const fn = document.getElementById("fNombre"); if (fn) fn.oninput = e => { state.fNombre = e.target.value; limpiarError(); };
-  document.querySelectorAll(".chip").forEach(c => c.onclick = () => setState({ fUsuario: c.dataset.user, authError: "" }));
-  document.getElementById("btnAuth").onclick = () => state.authModo === "registro" ? registrar() : ingresar();
 }
 
 function renderTurno() {
@@ -655,7 +543,7 @@ function renderApp() {
   return `
   <div class="topbar">
     <div class="avatar">${escapeHtml((state.mesero || "?").trim().charAt(0).toUpperCase())}</div>
-    <div class="who"><b>${escapeHtml(state.mesero)}</b><span>Mesa ${state.mesa} · @${escapeHtml(state.sesion.usuario)}</span></div>
+    <div class="who"><b>${escapeHtml(state.mesero)}</b><span>Mesa ${state.mesa} · @${escapeHtml(state.perfil.usuario || "")}</span></div>
     <button class="logout" id="btnMesa">Cambiar mesa</button>
     <button class="logout" id="btnLogout">Salir</button>
   </div>
@@ -741,7 +629,7 @@ function renderPedidos() {
 }
 
 function bindApp() {
-  document.getElementById("btnLogout").onclick = cerrarSesion;
+  document.getElementById("btnLogout").onclick = salir;
   document.getElementById("btnMesa").onclick = () => setState({ turnoAbierto: true, mesaBorrador: state.mesa });
   document.getElementById("tabMenu").onclick = () => setState({ tab: "menu" });
   document.getElementById("tabPedidos").onclick = () => setState({ tab: "pedidos" });
@@ -771,7 +659,7 @@ function bindApp() {
 }
 
 render();
-conectarPedidos();
+iniciarSesion();
 </script>
 
 <script>

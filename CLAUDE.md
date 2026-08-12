@@ -33,9 +33,16 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
 /contadores/{YYYY-MM-DD}
   <number>       # último correlativo del día, escritura con ETag condicional (evita choques)
 
-/meseros/{usuario}
+/trabajadores/{uid}          # uid = UID de Firebase Authentication
   nombre
-  pinHash        # SHA-256 del PIN — NUNCA texto plano
+  usuario                    # sin "@rodizio.local" — ver usuarioAEmail() en shared/auth.js
+  rolesPermitidos             # ["admin" | "mesero" | "cajero" | "cocinero", ...]
+  estado                     # "activo" | "inactivo" — inactivo o ausente = fuera, en cualquier app
+  creado
+
+/meseros/{usuario}            # LEGACY — login por PIN ya reemplazado por Firebase Authentication
+  nombre                      # (ver Fase 1 / Pendientes). Nadie lee ni escribe aquí; el nodo se
+  pinHash                     # deja tal cual, sin migrar ni borrar, no estorba.
   creado
 ```
 
@@ -45,9 +52,8 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
 
 - Vanilla JS, sin frameworks, sin bundler.
 - IDs del menú: prefijo por categoría + número (`en1`, `pa3`, `ab2`…) — ver `menu.js`.
-- PIN de mesero: se hashea con SHA-256 **en el celular**, antes de tocar la red. Nunca en texto plano, nunca en localStorage.
-- Cuentas de mesero viven en Firebase (`/meseros`), **no localmente**. Cada celular solo recuerda (localStorage) qué usuarios *ya iniciaron sesión en ese dispositivo*, para mostrarlos como accesos rápidos — nunca la lista completa de meseros del restaurante (para que nadie vea ni toque el perfil de otro).
-- Registro de cuenta **no** inicia sesión automáticamente — el flujo intencional es: registrar → volver a login → el mesero entra él mismo con su PIN.
+- Sesión: **una sola vez**, en el login raíz (`/index.html`), con Firebase Authentication. Cada app (`mesero-app`, `panel-caja`, `panel-cocina`, `panel-admin`) solo trae un *guard* (`onAuthStateChanged()` + `getWorkerProfile()` + `hasRole()`) que verifica sesión + rol correcto + `estado === "activo"` en cada carga, y redirige a `/` si algo falla — nunca tienen su propio formulario de login. Así, desactivar o borrar un trabajador en `/trabajadores` lo saca de todas las apps en la siguiente carga, sin importar si ya había iniciado sesión antes.
+- Registro de cuenta **no** inicia sesión automáticamente — el flujo intencional es: registrar → volver a login → la persona entra ella misma con su usuario y contraseña.
 - Service worker por app: cachea el cascarón (HTML/CSS/JS/iconos) para offline + instalable. Las peticiones a `firebaseio.com` **nunca** se cachean — siempre deben ir en vivo.
 
 ## Estructura de carpetas — ✅ ya aplicada
@@ -68,11 +74,10 @@ rodizio/
 ```
 
 **Notas del refactor ya hecho:**
-- `hashPin()` y `crearCuentaSiLibre()` siguen viviendo dentro de `mesero-app/index.html`, **a propósito** — son parte del login por PIN que la Fase 1 (Firebase Authentication) va a reemplazar. No tiene sentido moverlas a `shared/` para borrarlas poco después.
-- Cada `sw.js` ya precachea los 3 archivos de `shared/` (rutas relativas `../shared/...`) además de su propio cascarón, así que el offline sigue funcionando.
+- Cada `sw.js` ya precachea `theme.css`, `firebase.js`, `util.js` y `roles.js` de `shared/` (rutas relativas `../shared/...`) además de su propio cascarón, así que el offline sigue funcionando. `auth.js` (módulo ES, importa el SDK desde CDN) **no** se precachea a propósito, igual que en `panel-admin` — el login en sí siempre necesita red.
 - Condición para que esto siga funcionando: **las apps deben seguir sirviéndose desde el mismo dominio/hosting**, con `shared/` como carpeta hermana de cada app. Confirmado: se despliega todo junto vía Firebase Hosting (sitio `rodizio`), así que esta condición se cumple.
 
-## Fase 1 (Firebase Authentication) — ✅ hecha a nivel de `shared/auth.js`, pendiente de conectar a las apps
+## Fase 1 (Firebase Authentication) — ✅ hecha y conectada en las 4 apps
 
 `shared/auth.js` ya existe, con la configuración real del proyecto embebida, y expone: `login()`, `logout()`, `getCurrentUser()`, `onAuthStateChanged()`, `crearCuenta()`, `restablecerPasswordPropia()`.
 
@@ -84,7 +89,9 @@ rodizio/
 1. **Restablecer contraseña por correo no funciona.** Los trabajadores usan `usuario@rodizio.local` (correo sintético interno, nunca una bandeja real), así que Firebase no tiene a quién mandarle el link de recuperación. `restablecerPasswordPropia()` solo sirve para que el propio trabajador, ya logueado, cambie su contraseña. Resetear la de otro trabajador, hoy, requiere hacerlo manualmente desde la consola de Firebase (Authentication → usuario → Reset password) — no hay forma de automatizarlo sin backend (Admin SDK o Cloud Functions).
 2. **Crear cuentas de otros trabajadores usa una segunda instancia de Firebase** (`authSecundaria()` dentro de `auth.js`) para que el admin no pierda su propia sesión al crear una — es una limitación conocida del SDK de Firebase Auth, no un bug nuestro.
 
-**Todavía NO wireado a ninguna interfaz.** `auth.js`/`roles.js` existen y son correctos, pero ninguna app los usa todavía — `mesero-app` sigue funcionando con el login por PIN de siempre. Hay un problema de orden que hay que resolver antes de cortar ese cable: **hoy nadie puede crear una cuenta nueva en Firebase Auth**, porque `crearCuenta()` está pensado para usarse desde `panel-admin`, que todavía no existe. Si se apaga el autoregistro por PIN de `mesero-app` antes de tener `panel-admin` (aunque sea una versión mínima con solo "crear trabajador"), nadie podría dar de alta a un mesero nuevo. Recomiendo construir esa pieza mínima de `panel-admin` antes de tocar el login de `mesero-app`.
+**Ya wireado a las 4 interfaces.** `mesero-app`, `panel-caja` y `panel-cocina` tienen guard (rol `mesero` / `cajero` / `cocinero` respectivamente); `panel-admin` tiene guard de rol `admin`. El login por PIN de `mesero-app` (`hashPin()`, `crearCuentaSiLibre()`, `/meseros`) quedó reemplazado por completo — ver nota "LEGACY" en el esquema de Firebase.
+
+**Bootstrap temporal en el login raíz.** `index.html` (raíz) tiene un botón "Crear cuenta de administrador (bootstrap)" que llama `crearCuenta()` + escribe `/trabajadores/{uid}` con `rolesPermitidos: ["admin"]`, para crear el primer admin sin depender de la consola de Firebase ni de `panel-admin` (que a su vez exige ya tener un admin para entrar). Está marcado en el código con el comentario `BOOTSTRAP TEMPORAL` — **quitar ese bloque una vez exista al menos un admin funcional**; de ahí en adelante, dar de alta trabajadores se hace desde `panel-admin`.
 
 ## Cómo extender
 
@@ -95,8 +102,8 @@ rodizio/
 
 ## Limitaciones conocidas
 
-1. **Reglas de Firebase abiertas** (`.read/.write: true`) — cualquiera con la URL de la base puede leer y escribir sin restricción. Autenticación real requeriría `apiKey` + Firebase Auth (fuera del alcance actual).
-2. **PIN de 4 dígitos, hasheado sin sal** — débil ante fuerza bruta offline si alguien llega a leer `/meseros` directamente vía REST.
+1. **Reglas de Firebase abiertas** (`.read/.write: true`) — cualquiera con la URL de la base puede leer y escribir sin restricción, **sin importar que las 4 apps ya autentiquen con Firebase Auth**: el guard de cada app es una verificación de la interfaz, no una regla de la base de datos. Cerrar esto de verdad significa escribir reglas RTDB que exijan `auth != null` (y, según la ruta, el rol correcto) — pendiente, ver Fase 9 en Pendientes. Importante: `mesero-app`/`panel-caja`/`panel-cocina` ya mandan las peticiones REST sin token (`shared/firebase.js` no adjunta `?auth=`), así que cerrar reglas hoy las rompería — primero habría que adjuntar el ID token a esas peticiones.
+2. **`/meseros` (PIN, legacy):** el nodo sigue en la base sin borrar, con el mismo riesgo de siempre (hash SHA-256 sin sal) si alguien lo lee por REST — pero ya no lo usa ninguna app, así que es dato muerto, no una superficie activa.
 3. **Sin backend real:** el código secuencial (`siguienteCodigo`) usa ETag condicional como aproximación a una transacción atómica. No es 100% a prueba de carreras bajo concurrencia muy alta (aceptable para el volumen de un restaurante).
 4. **Exportar a Excel** (panel-caja) depende de cargar ExcelJS desde CDN la primera vez (necesita internet); después queda cacheado por el service worker.
 
@@ -114,8 +121,9 @@ rodizio/
 - [x] `shared/roles.js` — construido y en uso (getWorkerProfile, hasRole, etc.).
 - [x] **Login raíz (`/index.html`)** — punto de entrada único: autentica, lee `/trabajadores/{uid}`, y redirige (o deja elegir, si tiene varios roles) hacia `mesero-app/`, `panel-caja/`, `panel-cocina/` o `panel-admin/`.
 - [x] **`panel-admin` mínimo** — crear trabajador (Firebase Auth + `/trabajadores/{uid}`) y listado de solo lectura. Protegido con guard real: sin sesión o sin rol `admin` activo → redirige al login raíz. Editar, activar/desactivar, quitar roles y restablecer contraseña de otro trabajador **NO** están implementados todavía (alcance a propósito reducido).
-- [ ] **`mesero-app`, `panel-caja` y `panel-cocina` TODAVÍA NO validan sesión** — hoy se puede entrar directo a cualquiera de las 3 sin pasar por el login raíz (bookmarks, PWA instalada, o escribiendo la URL a mano). Falta agregarles un guard con `onAuthStateChanged()` que redirija a `/` si no hay sesión — **ya es seguro hacerlo ahora**, porque `panel-admin` ya puede dar de alta trabajadores nuevos.
-- [ ] `mesero-app` sigue con el login por PIN de siempre, sin conectar al nuevo sistema — siguiente paso lógico: reemplazarlo por el guard de sesión + rol `mesero`, igual que se hizo en `panel-admin`.
+- [x] **`mesero-app`, `panel-caja` y `panel-cocina` ya validan sesión** — guard con `onAuthStateChanged()` + `getWorkerProfile()` + `hasRole()` (rol `mesero`/`cajero`/`cocinero` según la app) que redirige a `/` si no hay sesión, el perfil no existe/está inactivo, o no tiene el rol correcto. Entrar directo por bookmark/URL sin pasar por el login raíz ya no funciona.
+- [x] `mesero-app` reemplazó el login por PIN por el guard de sesión + rol `mesero`, igual que las demás apps.
+- [ ] **Quitar el bootstrap temporal de `index.html`** (botón "Crear cuenta de administrador") una vez exista al menos un admin funcional — ver nota en la sección Fase 1.
 - [ ] Revisar `"orientation": "portrait"` en el manifest de `mesero-app` ahora que también se instala en PC (los paneles ya usan `"any"`).
 - [ ] Resto de fases del plan: `shared/mesas.js`, `shared/pedidos.js` (con estado por línea), `shared/qr.js`, `panel-cliente/`, cerrar las reglas abiertas de Firebase (Fase 9).
 - [ ] **Decisión pendiente sobre restablecer contraseña de otro trabajador** (sección 36): sin backend, la única forma hoy es manual desde la consola de Firebase.
@@ -124,9 +132,11 @@ rodizio/
 
 **Firebase Hosting**, sitio `rodizio` dentro del mismo proyecto Firebase (`rodizio-cucuta-08`) que ya usan RTDB y Authentication — todo bajo un solo proyecto. Configurado con `firebase.json` (`"public": "."`, sirve el repo tal cual, sin mover nada a una carpeta `public/` aparte) y `.firebaserc`. Deploy: `firebase deploy --only hosting:rodizio` → publica en `https://rodizio.web.app`. El login raíz (`/index.html`) es el punto de entrada; cada app sigue siendo también una PWA instalable por separado.
 
-## Cómo crear la primera cuenta de prueba (bootstrap manual)
+## Cómo crear la primera cuenta de admin
 
-No hay `panel-admin` todavía, así que la primera cuenta se crea a mano:
+Camino normal: `/index.html` → botón **"Crear cuenta de administrador (bootstrap)"** → llena nombre/usuario/contraseña → crea la cuenta en Firebase Auth y su perfil en `/trabajadores` con `rolesPermitidos: ["admin"]` → vuelve a login → entra con ese usuario y contraseña. Es un bloque temporal (ver Pendientes) — una vez tengas un admin, da de alta al resto desde `panel-admin`.
+
+Alternativa manual (consola de Firebase, por si el bootstrap de arriba no está disponible):
 1. Firebase Console → Authentication → Users → "Add user". Email: `TUUSUARIO@rodizio.local` (reemplaza TUUSUARIO), cualquier contraseña. Copia el UID que te muestra.
 2. Firebase Console → Realtime Database → en la raíz, crea manualmente el nodo `/trabajadores/{ESE_UID}` con:
    ```json

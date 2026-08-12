@@ -1,7 +1,7 @@
 // Rodizio Cocina — service worker: cachea el cascarón de la app para que
 // abra al instante y quede instalable, sin interferir con el streaming
 // en vivo de Firebase (esas peticiones nunca se cachean).
-const CACHE = "rodizio-cocina-simple-v2";
+const CACHE = "rodizio-cocina-simple-v3";
 const SHELL = [
   "./",
   "./index.html",
@@ -11,7 +11,8 @@ const SHELL = [
   "./icon-512-maskable.png",
   "../shared/theme.css",
   "../shared/firebase.js",
-  "../shared/util.js"
+  "../shared/util.js",
+  "../shared/roles.js"
 ];
 
 self.addEventListener("install", (event) => {

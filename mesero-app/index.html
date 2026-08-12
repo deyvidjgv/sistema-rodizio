@@ -420,9 +420,11 @@ function avisarListo(p) {
 
 /* ── Auth — sesión de Firebase Authentication verificada contra el rol
    "mesero" en /trabajadores/{uid} (ver shared/auth.js y shared/roles.js).
+   "admin" también pasa el guard de cualquier panel, para poder
+   supervisar/probar sin necesitar cada rol asignado por separado.
    El login en sí ocurre en el login raíz (/index.html); esta app solo
    valida en cada carga y expulsa si no hay sesión, el perfil no existe,
-   está inactivo, o no tiene el rol "mesero". ── */
+   está inactivo, o no tiene el rol "mesero" (ni "admin"). ── */
 function esperarAuthListo() {
   return new Promise((resolve) => {
     (function chequear() {
@@ -444,7 +446,7 @@ async function iniciarSesion() {
     let perfil;
     try { perfil = await getWorkerProfile(user.uid); }
     catch (e) { window.location.href = "../index.html"; return; }
-    if (!perfil || perfil.estado !== "activo" || !hasRole(perfil, "mesero")) {
+    if (!perfil || perfil.estado !== "activo" || (!hasRole(perfil, "mesero") && !hasRole(perfil, "admin"))) {
       await logout();
       window.location.href = "../index.html";
       return;

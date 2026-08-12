@@ -172,8 +172,9 @@
    Conectado directamente a Firebase Realtime Database por REST + SSE
    (Server-Sent Events), así que no necesita apiKey ni el SDK de Firebase:
    solo la URL de la base de datos.
-   Sesión: guard de Firebase Authentication + rol "cajero" (ver
-   shared/auth.js y shared/roles.js) — el login ocurre en el login raíz
+   Sesión: guard de Firebase Authentication + rol "cajero" (o "admin",
+   que pasa el guard de cualquier panel) — ver shared/auth.js y
+   shared/roles.js. El login ocurre en el login raíz
    (/index.html); este panel solo verifica y, si falla, redirige ahí.
    ───────────────────────────────────────────────────────────── */
 // DB_URL / dbUrl / dbUpdate / escucharSSE / aplicarEventoSSE / escapeHtml /
@@ -443,7 +444,7 @@ async function iniciar() {
     let perfil;
     try { perfil = await getWorkerProfile(user.uid); }
     catch (e) { window.location.href = "../index.html"; return; }
-    if (!perfil || perfil.estado !== "activo" || !hasRole(perfil, "cajero")) {
+    if (!perfil || perfil.estado !== "activo" || (!hasRole(perfil, "cajero") && !hasRole(perfil, "admin"))) {
       await logout();
       window.location.href = "../index.html";
       return;

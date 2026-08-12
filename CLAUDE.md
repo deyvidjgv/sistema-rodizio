@@ -130,7 +130,9 @@ rodizio/
 
 ## Despliegue
 
-**Firebase Hosting**, sitio `rodizio` dentro del mismo proyecto Firebase (`rodizio-cucuta-08`) que ya usan RTDB y Authentication — todo bajo un solo proyecto. Configurado con `firebase.json` (`"public": "."`, sirve el repo tal cual, sin mover nada a una carpeta `public/` aparte) y `.firebaserc`. Deploy: `firebase deploy --only hosting:rodizio` → publica en `https://rodizio.web.app`. El login raíz (`/index.html`) es el punto de entrada; cada app sigue siendo también una PWA instalable por separado.
+**Firebase Hosting**, sitio `rodizio` dentro del mismo proyecto Firebase (`rodizio-eb49a`) que ya usan RTDB y Authentication — todo bajo un solo proyecto. Configurado con `firebase.json` (`"public": "."`, sirve el repo tal cual, sin mover nada a una carpeta `public/` aparte) y `.firebaserc`. Deploy: `firebase deploy --only hosting:rodizio` → publica en `https://rodizio.web.app`. El login raíz (`/index.html`) es el punto de entrada; cada app sigue siendo también una PWA instalable por separado.
+
+**Nota histórica:** el proyecto original (`rodizio-cucuta-08`) fue suspendido por Google Cloud Platform (Trust & Safety) el 11 ago 2026, muy probablemente por abuso de terceros aprovechando las reglas de RTDB abiertas (ver "Limitaciones conocidas" #1). Se migró todo a `rodizio-eb49a` con `DB_URL` (`shared/firebase.js`) y `firebaseConfig` (`shared/auth.js`) actualizados. Si el proyecto viejo se reactiva por la apelación, **no volver a usarlo** sin antes cerrar las reglas de RTDB — la vulnerabilidad que probablemente causó la suspensión sigue sin corregir en el proyecto nuevo también.
 
 ## Cómo crear la primera cuenta de admin
 

@@ -28,7 +28,9 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
   total         123400
   estado        "enviado" | "preparacion" | "listo" | "entregado"
   ts            1690000000000   # creación
-  tsCambio      1690000000000   # último cambio de estado
+  tsCambio      1690000000000   # último cambio de estado (lo pone panel-cocina)
+  pagado        true                             # opcional — lo pone panel-caja al cobrar
+  tsPago        1690000000000                    # opcional — timestamp del cobro
 
 /contadores/{YYYY-MM-DD}
   <number>       # último correlativo del día, escritura con ETag condicional (evita choques)
@@ -46,7 +48,12 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
   creado
 ```
 
-**Flujo de un pedido:** mesero envía (`enviado`) → cocina pasa a `preparacion` → `listo` → mesero marca `entregado`. Las 3 apps escuchan `/pedidos` en vivo por SSE, así que un cambio de estado se ve al instante en todas las pantallas sin refrescar.
+**Flujo de un pedido:** mesero envía (`enviado`) → cocina pasa a `preparacion` → `listo` → mesero marca `entregado` → caja confirma el cobro (`pagado: true`, no cambia `estado`). Las 3 apps escuchan `/pedidos` en vivo por SSE, así que un cambio se ve al instante en todas las pantallas sin refrescar.
+
+**División de responsabilidades por panel** (a propósito, no se pisan):
+- `mesero-app`: crea el pedido (`enviado`) y lo marca `entregado` cuando lo sirve en la mesa.
+- `panel-cocina`: avanza `enviado` → `preparacion` → `listo`. No toca cobros.
+- `panel-caja`: solo ve pedidos ya `entregado` y confirma el pago (`pagado`/`tsPago`). No avanza el estado del pedido — eso es trabajo de cocina.
 
 ## Convenciones de código
 

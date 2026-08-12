@@ -42,9 +42,6 @@
   .sound-btn svg{width:18px;height:18px}
 
   main{max-width:1400px;margin:0 auto;padding:18px 20px 60px}
-  .board{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
-  @media (max-width:980px){.board{grid-template-columns:1fr;gap:22px}}
-  .col{min-width:0}
   .col-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:0 4px}
   .col-head .swatch{width:11px;height:11px;border-radius:4px;flex:none}
   .col-head h2{font-size:16px;flex:1}
@@ -52,8 +49,6 @@
   .cards{display:flex;flex-direction:column;gap:12px;min-height:70px}
 
   .ticket{background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:16px 17px;box-shadow:var(--shadow-sm);animation:rzPop .28s ease both}
-  .ticket.enviado{border-color:var(--color-accent-300)}
-  .ticket.listo{border-color:var(--color-accent-2-500);background:var(--color-accent-2-100)}
   .ticket.nueva{animation:rzPop .28s ease both, rzRing 1.1s ease-out 1}
   .t-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
   .t-codigo{font-family:var(--font-heading);font-size:21px;line-height:1}
@@ -69,10 +64,7 @@
   .t-foot{display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px dashed var(--color-divider)}
   .t-total{font-weight:800;font-size:14px}
   .t-action{margin-left:auto;border:0;border-radius:999px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;color:var(--color-bg)}
-  .t-action.a-prep{background:var(--color-accent)}
-  .t-action.a-listo{background:var(--color-accent-2-600)}
-  .t-badge-listo{margin-left:auto;font-size:12px;font-weight:800;color:var(--color-accent-2-700);display:flex;align-items:center;gap:6px}
-  .t-badge-listo .b{width:7px;height:7px;border-radius:50%;background:var(--color-accent-2-600);animation:rzPulse 1.4s ease-in-out infinite}
+  .t-action.a-pago{background:var(--color-accent-2-600)}
 
   .empty{border:1.5px dashed var(--color-divider);border-radius:var(--radius-lg);padding:26px 16px;text-align:center;color:var(--color-neutral-500);font-size:13px}
 
@@ -131,25 +123,15 @@
 <main>
   <div class="banner" id="banner">Sin conexión con Firebase — mostrando la última comanda recibida.</div>
 
-  <div class="board">
-    <section class="col">
-      <div class="col-head"><span class="swatch" style="background:var(--color-accent)"></span><h2>Nuevos</h2><span class="col-count" id="cEnviado">0</span></div>
-      <div class="cards" id="colEnviado"></div>
-    </section>
-    <section class="col">
-      <div class="col-head"><span class="swatch" style="background:var(--color-accent-700)"></span><h2>En preparación</h2><span class="col-count" id="cPrep">0</span></div>
-      <div class="cards" id="colPrep"></div>
-    </section>
-    <section class="col">
-      <div class="col-head"><span class="swatch" style="background:var(--color-accent-2-600)"></span><h2>Listos</h2><span class="col-count" id="cListo">0</span></div>
-      <div class="cards" id="colListo"></div>
-    </section>
-  </div>
+  <section>
+    <div class="col-head"><span class="swatch" style="background:var(--color-accent)"></span><h2>Por cobrar</h2><span class="col-count" id="cPorCobrar">0</span></div>
+    <div class="cards" id="colPorCobrar"></div>
+  </section>
 </main>
 
 <section class="entregados-sec">
   <div class="entregados-head">
-    <span class="swatch"></span><h2>Entregados hoy</h2><span class="col-count" id="cEntregados">0</span>
+    <span class="swatch"></span><h2>Cobrados hoy</h2><span class="col-count" id="cCobrados">0</span>
     <button class="btn-exportar" id="btnExportar" title="Descargar en Excel">⬇️ Exportar Excel</button>
   </div>
   <div class="entregados-list" id="entregadosList"></div>
@@ -157,8 +139,8 @@
 
 <div class="footbar">
   <div class="stat"><b id="statHoy">0</b>comandas hoy</div>
-  <div class="stat"><b id="statEntregados">0</b>servidas</div>
-  <div class="stat"><b id="statPromedio">0 min</b>tiempo medio en cocina</div>
+  <div class="stat"><b id="statCobradas">0</b>cobradas hoy</div>
+  <div class="stat"><b id="statPorCobrar">0</b>por cobrar</div>
 </div>
 </div>
 
@@ -172,6 +154,10 @@
    Conectado directamente a Firebase Realtime Database por REST + SSE
    (Server-Sent Events), así que no necesita apiKey ni el SDK de Firebase:
    solo la URL de la base de datos.
+   Alcance a propósito reducido: SOLO cobrar. Avanzar el pedido por
+   "enviado"/"preparación"/"listo" es trabajo de panel-cocina — caja
+   únicamente ve los pedidos ya "entregado" al mesero y confirma el
+   pago (campos pagado/tsPago, no un estado nuevo del pedido).
    Sesión: guard de Firebase Authentication + rol "cajero" (o "admin",
    que pasa el guard de cualquier panel) — ver shared/auth.js y
    shared/roles.js. El login ocurre en el login raíz
@@ -180,8 +166,8 @@
 // DB_URL / dbUrl / dbUpdate / escucharSSE / aplicarEventoSSE / escapeHtml /
 // fmtCop / crearBeep vienen de ../shared/firebase.js y ../shared/util.js
 
-let pedidos = {};      // { pushId: {codigo, mesa, mesero, lineas, total, estado, ts} }
-let vistos = new Set(); // ids ya renderizados, para detectar "nuevos" y sonar aviso
+let pedidos = {};      // { pushId: {codigo, mesa, mesero, lineas, total, estado, ts, pagado, tsPago} }
+let vistos = new Set(); // ids ya vistos en "por cobrar", para detectar nuevos y sonar aviso
 let primeraCarga = true;
 let sonidoOn = true;
 const beep = crearBeep([880, 1180]);
@@ -215,9 +201,9 @@ document.getElementById("soundBtn").addEventListener("click", () => {
     : '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/>';
 });
 
-/* ── Acciones de cocina ── */
-function marcar(id, estado) {
-  dbUpdate(`/pedidos/${id}`, { estado, tsCambio: Date.now() });
+/* ── Cobro: el único cambio que hace caja sobre un pedido ── */
+function confirmarPago(id) {
+  dbUpdate(`/pedidos/${id}`, { pagado: true, tsPago: Date.now() });
 }
 
 /* ── Render ── */
@@ -228,14 +214,10 @@ function linea(l) {
   </div>`;
 }
 
-function ticket(id, p, accion) {
-  const min = minsDesde(p.ts);
-  const nueva = !vistos.has(id) && !primeraCarga && p.estado === "enviado";
+function ticket(id, p) {
+  const min = minsDesde(p.tsCambio || p.ts);
+  const nueva = !vistos.has(id) && !primeraCarga;
   const lineasHtml = (p.lineas || []).map(linea).join("");
-  let foot = "";
-  if (accion === "prep") foot = `<button class="t-action a-prep" onclick="marcar('${id}','preparacion')">Empezar</button>`;
-  else if (accion === "listo") foot = `<button class="t-action a-listo" onclick="marcar('${id}','listo')">Marcar listo</button>`;
-  else if (accion === "espera") foot = `<span class="t-badge-listo"><span class="b"></span>Esperando mesero</span>`;
 
   return `<div class="ticket ${p.estado}${nueva ? " nueva" : ""}" data-id="${id}">
     <div class="t-top">
@@ -244,7 +226,7 @@ function ticket(id, p, accion) {
     </div>
     <div class="t-mesero">${escapeHtml(p.mesero || "Mesero")}</div>
     <div class="t-lineas">${lineasHtml}</div>
-    <div class="t-foot"><span class="t-total">${fmtCop(p.total)}</span>${foot}</div>
+    <div class="t-foot"><span class="t-total">${fmtCop(p.total)}</span><button class="t-action a-pago" onclick="confirmarPago('${id}')">Confirmar pago</button></div>
   </div>`;
 }
 
@@ -252,40 +234,40 @@ function render() {
   const entries = Object.entries(pedidos).filter(([, p]) => p && p.estado);
   entries.sort((a, b) => (a[1].ts || 0) - (b[1].ts || 0));
 
-  const enviados = entries.filter(([, p]) => p.estado === "enviado");
-  const prep = entries.filter(([, p]) => p.estado === "preparacion");
-  const listos = entries.filter(([, p]) => p.estado === "listo");
   const entregados = entries.filter(([, p]) => p.estado === "entregado");
+  const porCobrar = entregados.filter(([, p]) => !p.pagado);
+  const cobrados = entregados.filter(([, p]) => p.pagado);
 
-  fill("colEnviado", "cEnviado", enviados, "prep");
-  fill("colPrep", "cPrep", prep, "listo");
-  fill("colListo", "cListo", listos, "espera");
-  fillEntregados(entregados);
+  fillPorCobrar(porCobrar);
+  fillCobrados(cobrados);
 
   document.getElementById("statHoy").textContent = entries.length;
-  document.getElementById("statEntregados").textContent = entregados.length;
+  document.getElementById("statPorCobrar").textContent = porCobrar.length;
+  document.getElementById("statCobradas").textContent = cobrados.filter(([, p]) => esHoy(p.tsPago)).length;
 
-  const cerrados = entries.filter(([, p]) => p.tsCambio && p.estado !== "enviado");
-  const promedio = cerrados.length
-    ? Math.round(cerrados.reduce((s, [, p]) => s + (p.tsCambio - p.ts), 0) / cerrados.length / 60000)
-    : 0;
-  document.getElementById("statPromedio").textContent = promedio + " min";
-
-  const nuevosSinVer = enviados.some(([id]) => !vistos.has(id));
+  const nuevosSinVer = porCobrar.some(([id]) => !vistos.has(id));
   if (nuevosSinVer && !primeraCarga && sonidoOn) beep();
 
   entries.forEach(([id]) => vistos.add(id));
   primeraCarga = false;
 }
 
-/* ── Registro de entregados: solo los de hoy, más reciente primero ── */
+function fillPorCobrar(porCobrar) {
+  const col = document.getElementById("colPorCobrar");
+  document.getElementById("cPorCobrar").textContent = porCobrar.length;
+  col.innerHTML = porCobrar.length
+    ? porCobrar.map(([id, p]) => ticket(id, p)).join("")
+    : `<div class="empty">No hay pedidos pendientes de cobro</div>`;
+}
+
+/* ── Historial de cobrados: solo los de hoy, más reciente primero ── */
 function esHoy(ts) {
   if (!ts) return false;
   const a = new Date(ts), b = new Date();
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
-function entregadoRow(id, p) {
-  const hora = new Date(p.tsCambio || p.ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+function cobradoRow(id, p) {
+  const hora = new Date(p.tsPago || p.tsCambio || p.ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
   return `<div class="entregado-row" data-id="${id}">
     <span class="e-codigo">${escapeHtml(p.codigo || id)}</span>
     <span class="e-mesa">Mesa ${escapeHtml(String(p.mesa ?? "—"))}</span>
@@ -294,21 +276,13 @@ function entregadoRow(id, p) {
     <span class="e-total">${fmtCop(p.total)}</span>
   </div>`;
 }
-function fillEntregados(entregados) {
-  const hoy = entregados.filter(([, p]) => esHoy(p.tsCambio || p.ts)).sort((a, b) => (b[1].tsCambio || b[1].ts || 0) - (a[1].tsCambio || a[1].ts || 0));
-  document.getElementById("cEntregados").textContent = hoy.length;
+function fillCobrados(cobrados) {
+  const hoy = cobrados.filter(([, p]) => esHoy(p.tsPago)).sort((a, b) => (b[1].tsPago || 0) - (a[1].tsPago || 0));
+  document.getElementById("cCobrados").textContent = hoy.length;
   const list = document.getElementById("entregadosList");
   list.innerHTML = hoy.length
-    ? hoy.map(([id, p]) => entregadoRow(id, p)).join("")
-    : `<div class="entregados-empty">Aún no se ha entregado ningún pedido hoy</div>`;
-}
-
-function fill(colId, countId, list, accion) {
-  const col = document.getElementById(colId);
-  document.getElementById(countId).textContent = list.length;
-  col.innerHTML = list.length
-    ? list.map(([id, p]) => ticket(id, p, accion)).join("")
-    : `<div class="empty">Sin comandas aquí por ahora</div>`;
+    ? hoy.map(([id, p]) => cobradoRow(id, p)).join("")
+    : `<div class="entregados-empty">Aún no se ha cobrado ningún pedido hoy</div>`;
 }
 
 /* ── Exportar a Excel — todos los pedidos entregados que este panel
@@ -317,11 +291,11 @@ function fill(colId, countId, list, accion) {
    de color, columnas centradas, ancho cómodo y moneda formateada. ── */
 async function exportarExcel() {
   const btn = document.getElementById("btnExportar");
-  const entregados = Object.entries(pedidos)
-    .filter(([, p]) => p && p.estado === "entregado")
-    .sort((a, b) => (a[1].tsCambio || a[1].ts || 0) - (b[1].tsCambio || b[1].ts || 0));
+  const cobrados = Object.entries(pedidos)
+    .filter(([, p]) => p && p.estado === "entregado" && p.pagado)
+    .sort((a, b) => (a[1].tsPago || 0) - (b[1].tsPago || 0));
 
-  if (!entregados.length) { alert("Todavía no hay pedidos entregados para exportar."); return; }
+  if (!cobrados.length) { alert("Todavía no hay pedidos cobrados para exportar."); return; }
   if (typeof ExcelJS === "undefined") { alert("No se pudo cargar el generador de Excel — revisa tu conexión e intenta de nuevo."); return; }
 
   btn.disabled = true; const textoOriginal = btn.textContent; btn.textContent = "Generando…";
@@ -329,21 +303,20 @@ async function exportarExcel() {
     const wb = new ExcelJS.Workbook();
     wb.creator = "Rodizio";
     wb.created = new Date();
-    const ws = wb.addWorksheet("Entregados", { views: [{ state: "frozen", ySplit: 1 }] });
+    const ws = wb.addWorksheet("Cobrados", { views: [{ state: "frozen", ySplit: 1 }] });
 
     ws.columns = [
       { header: "Código", key: "codigo", width: 12 },
       { header: "Mesa", key: "mesa", width: 9 },
       { header: "Mesero", key: "mesero", width: 20 },
       { header: "Fecha", key: "fecha", width: 13 },
-      { header: "Hora enviado", key: "horaEnviado", width: 14 },
       { header: "Hora entregado", key: "horaEntregado", width: 15 },
-      { header: "Min. en cocina", key: "minCocina", width: 14 },
+      { header: "Hora pago", key: "horaPago", width: 13 },
       { header: "Ítems", key: "items", width: 55 },
       { header: "Total", key: "total", width: 15 }
     ];
 
-    entregados.forEach(([id, p]) => {
+    cobrados.forEach(([id, p]) => {
       const enviado = new Date(p.ts || Date.now());
       const items = (p.lineas || []).map(l => `${l.qty}× ${l.nombre}${l.nota ? " (" + l.nota + ")" : ""}`).join("\n");
       ws.addRow({
@@ -351,15 +324,14 @@ async function exportarExcel() {
         mesa: p.mesa ?? "—",
         mesero: p.mesero || "—",
         fecha: enviado.toLocaleDateString("es-CO"),
-        horaEnviado: enviado.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
         horaEntregado: p.tsCambio ? new Date(p.tsCambio).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—",
-        minCocina: p.tsCambio ? Math.max(0, Math.round((p.tsCambio - p.ts) / 60000)) : "—",
+        horaPago: p.tsPago ? new Date(p.tsPago).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—",
         items,
         total: p.total || 0
       });
     });
 
-    const totalGeneral = entregados.reduce((s, [, p]) => s + (p.total || 0), 0);
+    const totalGeneral = cobrados.reduce((s, [, p]) => s + (p.total || 0), 0);
     const filaTotal = ws.addRow({ items: "TOTAL DEL PERIODO", total: totalGeneral });
     filaTotal.font = { bold: true };
     filaTotal.eachCell({ includeEmpty: true }, cell => {
@@ -395,7 +367,7 @@ async function exportarExcel() {
     ws.getColumn("total").numFmt = '"$"#,##0';
 
     // Filas alternadas para que se lea fácil de un vistazo.
-    entregados.forEach((_, i) => {
+    cobrados.forEach((_, i) => {
       if (i % 2 === 1) {
         ws.getRow(i + 2).eachCell({ includeEmpty: true }, cell => {
           cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFBF3E8" } };
@@ -403,14 +375,14 @@ async function exportarExcel() {
       }
     });
 
-    ws.autoFilter = { from: "A1", to: "I1" };
+    ws.autoFilter = { from: "A1", to: "H1" };
 
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "rodizio-entregados-" + new Date().toISOString().slice(0, 10) + ".xlsx";
+    a.download = "rodizio-cobrados-" + new Date().toISOString().slice(0, 10) + ".xlsx";
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   } catch (e) {

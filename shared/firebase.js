@@ -7,7 +7,7 @@
    RTDB y con EventSource, que Firebase soporta de fábrica para
    streaming (Accept: text/event-stream). */
 
-const DB_URL = "https://rodizio-cucuta-08-default-rtdb.firebaseio.com";
+const DB_URL = "https://rodizio-eb49a-default-rtdb.firebaseio.com";
 const dbUrl = (path) => `${DB_URL}${path}.json`;
 
 async function dbGet(path) {

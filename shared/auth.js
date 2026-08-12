@@ -25,13 +25,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDY8BnKki-DLbZNV3V-8RsMOVxMh2xBeZk",
-  authDomain: "rodizio-cucuta-08.firebaseapp.com",
-  databaseURL: "https://rodizio-cucuta-08-default-rtdb.firebaseio.com/",
-  projectId: "rodizio-cucuta-08",
-  storageBucket: "rodizio-cucuta-08.firebasestorage.app",
-  messagingSenderId: "988098375090",
-  appId: "1:988098375090:web:0ad5146edc1db5f3bcc8ab"
+  apiKey: "AIzaSyAsxNjoeKahZIuMRUekwnZyY1IVeAbeqC0",
+  authDomain: "rodizio-eb49a.firebaseapp.com",
+  projectId: "rodizio-eb49a",
+  storageBucket: "rodizio-eb49a.firebasestorage.app",
+  messagingSenderId: "710683316030",
+  appId: "1:710683316030:web:d9078f4fd7f0eda1d4a66f",
+  measurementId: "G-BTC6SY5S29"
 };
 
 const app = initializeApp(firebaseConfig);

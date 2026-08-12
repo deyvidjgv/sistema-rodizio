@@ -134,6 +134,12 @@ rodizio/
 
 **Nota histórica:** el proyecto original (`rodizio-cucuta-08`) fue suspendido por Google Cloud Platform (Trust & Safety) el 11 ago 2026, muy probablemente por abuso de terceros aprovechando las reglas de RTDB abiertas (ver "Limitaciones conocidas" #1). Se migró todo a `rodizio-eb49a` con `DB_URL` (`shared/firebase.js`) y `firebaseConfig` (`shared/auth.js`) actualizados. Si el proyecto viejo se reactiva por la apelación, **no volver a usarlo** sin antes cerrar las reglas de RTDB — la vulnerabilidad que probablemente causó la suspensión sigue sin corregir en el proyecto nuevo también.
 
+**Pendiente manual para que `rodizio-eb49a` quede operativo** (código ya listo, falta esto en la consola de Firebase, no se puede automatizar desde el repo):
+1. Authentication → Sign-in method → habilitar **Email/Password** (si no está habilitado, todo login falla con `auth/operation-not-allowed`).
+2. `/trabajadores` está vacío en el proyecto nuevo — recrear la cuenta admin con el botón de bootstrap en `/index.html` (ver sección siguiente), o a mano.
+3. `.firebaserc` no existe en el repo — antes del primer `firebase deploy` en este proyecto, correr `firebase use --add` y seleccionar `rodizio-eb49a`. Si se usa Hosting, también crear el sitio de Hosting dentro del proyecto nuevo desde la consola (Hosting → Comenzar) antes del primer deploy.
+4. Reglas de RTDB del proyecto nuevo: revisar que no hayan quedado en modo "prueba" con vencimiento a 30 días (default de Firebase al crear la base) — igual siguen abiertas hasta que se aborde la Fase 9, pero conviene no dejarlas expirar a "todo denegado" sin darse cuenta.
+
 ## Cómo crear la primera cuenta de admin
 
 Camino normal: `/index.html` → botón **"Crear cuenta de administrador (bootstrap)"** → llena nombre/usuario/contraseña → crea la cuenta en Firebase Auth y su perfil en `/trabajadores` con `rolesPermitidos: ["admin"]` → vuelve a login → entra con ese usuario y contraseña. Es un bloque temporal (ver Pendientes) — una vez tengas un admin, da de alta al resto desde `panel-admin`.

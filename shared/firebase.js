@@ -10,13 +10,24 @@
 const DB_URL = "https://rodizio-eb49a-default-rtdb.firebaseio.com";
 const dbUrl = (path) => `${DB_URL}${path}.json`;
 
+// Si Firebase deniega la petición (reglas), REST responde 4xx con un
+// cuerpo tipo {"error":"Permission denied"} — sigue siendo JSON válido,
+// así que sin este chequeo se confundía con un dato real (ver claude.md,
+// "Para futuras sesiones"). Todas las funciones de abajo revisan r.ok
+// y lanzan un error de verdad en vez de devolver el error como si fuera dato.
+async function lanzarSiFalla(r, op, path) {
+  if (!r.ok) throw new Error(`${op} ${path} falló: ${r.status} ${await r.text()}`);
+}
+
 async function dbGet(path) {
   const r = await fetch(dbUrl(path));
+  await lanzarSiFalla(r, "dbGet", path);
   return r.json();
 }
 
 async function dbPush(path, data) {
   const r = await fetch(dbUrl(path), { method: "POST", body: JSON.stringify(data) });
+  await lanzarSiFalla(r, "dbPush", path);
   const j = await r.json();
   return j.name;
 }
@@ -24,16 +35,19 @@ async function dbPush(path, data) {
 // Reemplaza por completo el valor en esa ruta (PUT).
 async function dbSet(path, data) {
   const r = await fetch(dbUrl(path), { method: "PUT", body: JSON.stringify(data) });
+  await lanzarSiFalla(r, "dbSet", path);
   return r.json();
 }
 
 // Actualiza solo los campos indicados, sin tocar el resto (PATCH).
 async function dbUpdate(path, data) {
-  await fetch(dbUrl(path), { method: "PATCH", body: JSON.stringify(data) });
+  const r = await fetch(dbUrl(path), { method: "PATCH", body: JSON.stringify(data) });
+  await lanzarSiFalla(r, "dbUpdate", path);
 }
 
 async function dbDelete(path) {
-  await fetch(dbUrl(path), { method: "DELETE" });
+  const r = await fetch(dbUrl(path), { method: "DELETE" });
+  await lanzarSiFalla(r, "dbDelete", path);
 }
 
 // ───────── Tiempo real (SSE) ─────────

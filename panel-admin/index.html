@@ -169,9 +169,11 @@ function rolesSeleccionados() {
 }
 
 async function cargarTrabajadores() {
-  const todos = (await dbGet("/trabajadores")) || {};
-  const filas = Object.values(todos);
   const tbody = $("tbodyTrabajadores");
+  let todos;
+  try { todos = (await dbGet("/trabajadores")) || {}; }
+  catch (e) { tbody.innerHTML = `<tr><td colspan="4" class="empty-tabla">No se pudo cargar la lista — revisa tu conexión y recarga.</td></tr>`; return; }
+  const filas = Object.values(todos);
   if (!filas.length) {
     tbody.innerHTML = `<tr><td colspan="4" class="empty-tabla">Todavía no hay trabajadores registrados</td></tr>`;
     return;

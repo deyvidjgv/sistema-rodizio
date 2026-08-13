@@ -80,6 +80,27 @@ function aplicarEventoSSE(arbol, tipo, evento) {
   return arbol;
 }
 
+// ───────── Escritura condicional genérica (evita condiciones de carrera) ─────────
+// Lee el valor actual con ETag, y solo escribe si condicion(actual) es true —
+// usando "if-match" para que la escritura falle (sin aplicarse) si alguien más
+// escribió ese mismo path entre la lectura y la escritura. Mismo mecanismo que
+// siguienteCodigo() de abajo, generalizado para cualquier path/condición (p.
+// ej. tomar una mesa: solo asignarla si sigue "libre" en ese instante).
+// Devuelve true si escribió, false si la condición falló o alguien se adelantó.
+async function dbSetSiCondicion(path, condicion, datos) {
+  const getRes = await fetch(dbUrl(path), { headers: { "X-Firebase-ETag": "true" } });
+  await lanzarSiFalla(getRes, "dbSetSiCondicion(get)", path);
+  const etag = getRes.headers.get("ETag");
+  const actual = await getRes.json();
+  if (!condicion(actual)) return false;
+  const putRes = await fetch(dbUrl(path), {
+    method: "PUT",
+    headers: etag ? { "if-match": etag } : {},
+    body: JSON.stringify(datos)
+  });
+  return putRes.status === 200;
+}
+
 // ───────── Correlativo diario de pedidos (P-001, P-002, …) ─────────
 // Escritura condicional con ETag para que dos comandas enviadas al
 // mismo tiempo no choquen de número (aproximación a una transacción

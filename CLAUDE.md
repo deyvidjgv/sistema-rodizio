@@ -21,7 +21,8 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
 ```
 /pedidos/{pushId}
   codigo        "P-014"                          # correlativo diario, ver siguienteCodigo()
-  mesa          7
+  mesa          "Mesa 7"                          # NOMBRE de la mesa (no número fijo) — snapshot para mostrar
+  mesaId        "-Nabc123"                        # referencia a /mesas/{id}, para poder liberarla al cobrar
   mesero        "Juan Pérez"
   meseroUsuario "juanp"
   lineas        [{id, nombre, cat, qty, precio, nota}]
@@ -34,6 +35,14 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
 
 /contadores/{YYYY-MM-DD}
   <number>       # último correlativo del día, escritura con ETag condicional (evita choques)
+
+/mesas/{pushId}
+  nombre         "Mesa 5" | "Terraza 1" | "Barra 3" | "VIP"   # texto libre, no solo números
+  activa         true                             # false = no aparece para elegir en mesero-app
+  estado         "libre" | "ocupada"
+  meseroId       null | "<uid>"                   # quién la tiene tomada ahora mismo
+  meseroNombre   null | "Juan Pérez"               # solo para mostrar sin tener que buscar /trabajadores
+  pedidoActivoId null | "<pushId de /pedidos>"     # el último pedido creado mientras está ocupada
 
 /trabajadores/{uid}          # uid = UID de Firebase Authentication
   nombre
@@ -51,9 +60,17 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
 **Flujo de un pedido:** mesero envía (`enviado`) → cocina pasa a `preparacion` → `listo` → mesero marca `entregado` → caja confirma el cobro (`pagado: true`, no cambia `estado`). Las 3 apps escuchan `/pedidos` en vivo por SSE, así que un cambio se ve al instante en todas las pantallas sin refrescar.
 
 **División de responsabilidades por panel** (a propósito, no se pisan):
-- `mesero-app`: crea el pedido (`enviado`) y lo marca `entregado` cuando lo sirve en la mesa.
-- `panel-cocina`: avanza `enviado` → `preparacion` → `listo`. No toca cobros.
-- `panel-caja`: solo ve pedidos ya `entregado` y confirma el pago (`pagado`/`tsPago`). No avanza el estado del pedido — eso es trabajo de cocina.
+- `mesero-app`: crea el pedido (`enviado`), lo marca `entregado` cuando lo sirve, y es la única app que toma/suelta mesas (`/mesas`).
+- `panel-cocina`: avanza `enviado` → `preparacion` → `listo`. No toca cobros ni mesas.
+- `panel-caja`: solo ve pedidos ya `entregado` y confirma el pago (`pagado`/`tsPago`). No avanza el estado del pedido — eso es trabajo de cocina. Sí libera la mesa asociada cuando, tras ese cobro, ya no queda ningún otro pedido sin pagar de esa mesa (una visita puede tener varias comandas).
+- `panel-admin`: crea/renombra/activa/desactiva mesas en `/mesas` — no toma ni libera ninguna (eso es siempre cosa de mesero-app/panel-caja).
+
+**Mesas — ocupación y concurrencia** (`mesero-app`):
+- Tomar una mesa es una escritura **condicional** (`dbSetSiCondicion()` en `shared/firebase.js`, mismo mecanismo de ETag/`if-match` que ya usaba `siguienteCodigo()`): solo se asigna si en ese instante sigue `estado: "libre"`. Si dos meseros la tocan casi al mismo tiempo, solo uno gana — el otro ve "Esa mesa la acaba de tomar otro mesero", sin pisar al primero.
+- La ocupación vive **en Firebase**, no en el navegador — recargar la página, cerrar la pestaña o perder conexión **no libera nada**. Al volver a entrar, `recuperarMiMesa()` busca en `/mesas` cuál tiene `meseroId` igual a mi `uid` y la retoma sola, sin volver a preguntar.
+- Una mesa `ocupada` por **otro** mesero se ve deshabilitada en el drawer de mesero-app, con quién la está atendiendo. El mesero dueño siempre puede volver a entrar a la suya.
+- La única forma de que una mesa vuelva a `libre` es que `panel-caja` cobre el último pedido pendiente — cerrar la app o dejarla inactiva no la libera.
+- **Límite aceptado:** las reglas de RTDB siguen abiertas (ver "Limitaciones conocidas" #1), así que el ETag evita choques entre meseros usando la app normal, pero no evita que alguien salte la lógica con un PUT directo a la API — eso solo se arregla cerrando las reglas de verdad (Fase 9).
 
 ## Convenciones de código
 
@@ -70,7 +87,7 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
 rodizio/
 ├── shared/
 │   ├── theme.css        tokens de diseño (colores, fuentes, radios, sombras) + reset base
-│   ├── firebase.js      dbUrl / dbGet / dbPush / dbSet / dbUpdate / dbDelete / escucharSSE / aplicarEventoSSE / siguienteCodigo
+│   ├── firebase.js      dbUrl / dbGet / dbPush / dbSet / dbUpdate / dbDelete / dbSetSiCondicion / escucharSSE / aplicarEventoSSE / siguienteCodigo
 │   └── util.js          escapeHtml, fmtCop (formato COP), crearBeep() (fábrica de tonos Web Audio)
 ├── mesero-app/
 │   ├── index.html       menú, comanda, pedidos — mesa se elige/cambia desde el menú ☰
@@ -133,7 +150,8 @@ rodizio/
 - [x] `mesero-app` reemplazó el login por PIN por el guard de sesión + rol `mesero`, igual que las demás apps.
 - [ ] **Quitar el bootstrap temporal de `index.html`** (botón "Crear cuenta de administrador") una vez exista al menos un admin funcional — ver nota en la sección Fase 1.
 - [ ] Revisar `"orientation": "portrait"` en el manifest de `mesero-app` ahora que también se instala en PC (los paneles ya usan `"any"`).
-- [ ] Resto de fases del plan: `shared/mesas.js`, `shared/pedidos.js` (con estado por línea), `shared/qr.js`, `panel-cliente/`, cerrar las reglas abiertas de Firebase (Fase 9).
+- [x] **Mesas dinámicas + ocupación** — `/mesas` (nombre libre, activar/desactivar desde `panel-admin`), tomar/soltar mesa con escritura condicional en `mesero-app`, liberación al cobrar en `panel-caja`. Implementado inline en cada app, no como `shared/mesas.js` aparte (no hizo falta compartir código entre apps para esto).
+- [ ] Resto de fases del plan: `shared/pedidos.js` (con estado por línea), `shared/qr.js`, `panel-cliente/`, cerrar las reglas abiertas de Firebase (Fase 9).
 - [ ] **Decisión pendiente sobre restablecer contraseña de otro trabajador** (sección 36): sin backend, la única forma hoy es manual desde la consola de Firebase.
 
 ## Despliegue

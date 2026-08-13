@@ -33,12 +33,14 @@
   .auth-title{text-align:center;font-size:30px;margin-bottom:2px}
   .auth-sub{text-align:center;color:var(--color-neutral-600);font-size:13.5px;margin-bottom:22px}
   .cta{width:100%;min-height:54px;border:0;border-radius:999px;font-family:var(--font-heading);font-size:17px;background:var(--color-accent);color:var(--color-bg)}
+  .link-btn{display:block;border:0;background:none;color:var(--color-accent-700);font-size:12.5px;font-weight:700;cursor:pointer;padding:0}
 
   /* ── Selector de mesa (dentro del menú hamburguesa) ── */
   .mesa-actual{text-align:left;color:var(--color-neutral-600);font-size:13px;margin-bottom:14px}
-  .mesas{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}
-  .mesa-btn{min-height:46px;border-radius:16px;font-size:14px;font-weight:600;border:1px solid var(--color-divider);background:var(--color-neutral-100);color:var(--color-text)}
+  .mesas{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:9px}
+  .mesa-btn{min-height:46px;padding:0 8px;border-radius:16px;font-size:13.5px;font-weight:600;border:1px solid var(--color-divider);background:var(--color-neutral-100);color:var(--color-text)}
   .mesa-btn.on{border-color:var(--color-accent);background:var(--color-accent);color:var(--color-bg)}
+  .mesa-btn.ocupada{opacity:.5;background:var(--color-neutral-200);cursor:not-allowed}
 
   /* ── Top bar ── */
   .topbar{position:sticky;top:0;z-index:10;background:color-mix(in srgb, var(--color-bg) 90%, transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--color-divider);padding:12px 18px;display:flex;align-items:center;gap:10px}
@@ -352,13 +354,22 @@ const ESTADOS = ["enviado", "preparacion", "listo", "entregado"];
 // repartidos por el resto de este archivo.
 const cop = fmtCop;
 
-/* ── Estado de la app ── */
+/* ── Estado de la app ──
+   mesaId es la única fuente de verdad local de "qué mesa atiendo", pero
+   NO es la fuente de verdad real: esa vive en /mesas/{id} en Firebase
+   (estado/meseroId/pedidoActivoId). Por eso al recargar la página no se
+   pierde la mesa — se recupera leyendo /mesas y buscando cuál tiene
+   meseroId === mi uid. Ver claude.md, sección "Mesas". ── */
 const state = {
   cargandoSesion: true, perfil: null, uid: null,
-  mesero: "", mesa: null, menuAbierto: false,
+  mesero: "", mesaId: null, mesas: {}, menuAbierto: false,
   tab: "menu", cat: CATS[0], carrito: [],
   comandaAbierta: false, pedidos: {}, conectado: false, toast: ""
 };
+
+// La mesa que este mesero tiene tomada ahora mismo (objeto de /mesas), o null.
+function mesaActual() { return state.mesaId ? state.mesas[state.mesaId] : null; }
+function nombreMesaActual() { const m = mesaActual(); return m ? m.nombre : null; }
 
 function setState(patch) { Object.assign(state, patch); render(); }
 function aviso(t) { setState({ toast: t }); clearTimeout(window.__toastT); window.__toastT = setTimeout(() => setState({ toast: "" }), 2600); }
@@ -375,6 +386,69 @@ function conectarPedidos() {
   });
   es.onopen = () => setState({ conectado: true });
   es.onerror = () => setState({ conectado: false });
+}
+
+/* ── Mesas: escucha en vivo + tomar/liberar ──────────────────────
+   La ocupación vive en Firebase, no en el navegador: /mesas/{id} con
+   estado "libre"|"ocupada", meseroId y pedidoActivoId. Recargar o
+   cerrar la app NO libera nada — al volver, recuperarMiMesa() busca
+   en /mesas cuál tiene mi uid y la retoma sola. Solo se libera cuando
+   panel-caja cobra el último pedido pendiente de esa mesa. ── */
+function conectarMesas() {
+  const es = escucharSSE("/mesas", (tipo, evento) => {
+    state.mesas = aplicarEventoSSE(state.mesas, tipo, evento);
+    recuperarMiMesa();
+    setState({});
+  });
+}
+
+// Tras recargar/reabrir: si alguna mesa quedó a mi nombre en Firebase,
+// la retoma automáticamente. Y si la mesa que creía tener ya no es mía
+// (caja la liberó al cobrar, o un admin la desactivó), la suelta.
+function recuperarMiMesa() {
+  const mia = Object.entries(state.mesas).find(([, m]) => m && m.meseroId === state.uid && m.estado === "ocupada");
+  if (mia) { state.mesaId = mia[0]; return; }
+  if (state.mesaId && !mia) state.mesaId = null;
+}
+
+// Toma una mesa de forma segura: solo la asigna si en ESE instante sigue
+// libre en Firebase. dbSetSiCondicion usa ETag (if-match), así que si dos
+// meseros tocan la misma mesa a la vez, solo uno gana — el otro recibe
+// false y ve el aviso, en vez de pisar la asignación del primero.
+async function tomarMesa(id) {
+  const m = state.mesas[id];
+  if (!m) return;
+  if (m.meseroId === state.uid) { setState({ mesaId: id, menuAbierto: false }); return; }
+  if (m.estado === "ocupada") { aviso("Esa mesa ya está ocupada por otro mesero"); return; }
+
+  try {
+    const ok = await dbSetSiCondicion(
+      `/mesas/${id}`,
+      (actual) => actual && actual.activa !== false && actual.estado !== "ocupada",
+      Object.assign({}, m, {
+        estado: "ocupada", meseroId: state.uid, meseroNombre: state.mesero,
+        pedidoActivoId: null, tsOcupada: Date.now()
+      })
+    );
+    if (!ok) { aviso("Esa mesa la acaba de tomar otro mesero"); return; }
+    setState({ mesaId: id, menuAbierto: false });
+  } catch (e) {
+    aviso("No se pudo tomar la mesa — revisa la conexión");
+  }
+}
+
+// Soltar mi mesa actual SIN pasar por caja — solo tiene sentido (y solo se
+// permite) si la tomé por error y todavía no le envié ninguna comanda. Con
+// pedidoActivoId puesto, la única forma de liberarla es que caja cobre.
+async function liberarMiMesaSinPedido() {
+  const m = mesaActual();
+  if (!state.mesaId || !m || m.pedidoActivoId) return;
+  try {
+    await dbUpdate(`/mesas/${state.mesaId}`, { estado: "libre", meseroId: null, meseroNombre: null, pedidoActivoId: null });
+    setState({ mesaId: null });
+  } catch (e) {
+    aviso("No se pudo liberar la mesa — revisa la conexión");
+  }
 }
 
 // Avisa (sonido + notificación del sistema) apenas un pedido del mesero
@@ -404,10 +478,10 @@ const beepListo = crearBeep([740, 1040]);
 
 function avisarListo(p) {
   beepListo();
-  aviso("🔔 Mesa " + p.mesa + " lista · " + (p.codigo || ""));
+  aviso("🔔 " + p.mesa + " lista · " + (p.codigo || ""));
   if ("Notification" in window && Notification.permission === "granted") {
     try {
-      new Notification("Mesa " + p.mesa + " lista para servir", {
+      new Notification(p.mesa + " lista para servir", {
         body: (p.codigo || "Pedido") + " · toca para ver el detalle",
         icon: "icon-192.png",
         tag: "rodizio-listo"
@@ -451,6 +525,7 @@ async function iniciarSesion() {
     }
     setState({ cargandoSesion: false, perfil, uid: user.uid, mesero: perfil.nombre });
     conectarPedidos();
+    conectarMesas();
     pedirPermisoNotificaciones();
   });
 }
@@ -475,16 +550,20 @@ async function enviar() {
     qty: l.qty, precio: ITEM_INDEX[l.id].precio, nota: (l.nota || "").trim()
   }));
   const codigo = await siguienteCodigo();
+  const nombreMesa = nombreMesaActual();
   const pedido = {
-    codigo, mesa: state.mesa, mesero: state.mesero,
+    // "mesa" guarda el NOMBRE (lo que muestran cocina y caja tal cual);
+    // "mesaId" es la referencia a /mesas para poder liberarla al cobrar.
+    codigo, mesa: nombreMesa, mesaId: state.mesaId, mesero: state.mesero,
     meseroUsuario: state.perfil ? state.perfil.usuario : "",
     lineas, total: lineas.reduce((s, l) => s + l.precio * l.qty, 0),
     estado: "enviado", ts: Date.now()
   };
   try {
-    await dbPush("/pedidos", pedido);
+    const pedidoId = await dbPush("/pedidos", pedido);
+    await dbUpdate(`/mesas/${state.mesaId}`, { pedidoActivoId: pedidoId });
     setState({ carrito: [], comandaAbierta: false, tab: "pedidos" });
-    aviso("Comanda " + codigo + " enviada a cocina · Mesa " + state.mesa);
+    aviso("Comanda " + codigo + " enviada a cocina · " + nombreMesa);
   } catch (e) {
     aviso("No se pudo enviar — revisa la conexión");
   }
@@ -518,10 +597,11 @@ function renderCargando() {
 function renderApp() {
   const activos = Object.values(state.pedidos).filter(p => p.mesero === state.mesero && p.estado !== "entregado");
   const listos = Object.values(state.pedidos).filter(p => p.mesero === state.mesero && p.estado === "listo");
+  const nombreMesa = nombreMesaActual();
   return `
   <div class="topbar">
     <div class="avatar">${escapeHtml((state.mesero || "?").trim().charAt(0).toUpperCase())}</div>
-    <div class="who"><b>${escapeHtml(state.mesero)}</b><span>${state.mesa ? "Mesa " + state.mesa : "Sin mesa"} · @${escapeHtml(state.perfil.usuario || "")}</span></div>
+    <div class="who"><b>${escapeHtml(state.mesero)}</b><span>${nombreMesa ? escapeHtml(nombreMesa) : "Sin mesa"} · @${escapeHtml(state.perfil.usuario || "")}</span></div>
     <button class="menu-btn" id="btnMenu" aria-label="Menú">☰</button>
   </div>
   <div class="tabs">
@@ -529,9 +609,9 @@ function renderApp() {
     <button class="tab ${state.tab === "pedidos" ? "on" : ""}" id="tabPedidos">Pedidos ${activos.length ? "· " + activos.length : ""}</button>
   </div>
   <p class="connbar">${state.conectado ? "● Conectado con cocina" : "○ Conectando con cocina…"}</p>
-  ${listos.length ? `<button class="listos-banner" id="btnVerListos">🔔 ${listos.length === 1 ? "1 pedido listo" : listos.length + " pedidos listos"} · ${listos.map(p => "Mesa " + p.mesa).join(", ")} — toca para ver</button>` : ""}
-  <main>${state.tab === "menu" ? (state.mesa ? renderMenu() : renderSinMesa()) : renderPedidos()}</main>
-  ${state.tab === "menu" && state.mesa && state.carrito.length && !state.comandaAbierta ? renderCartBar() : ""}
+  ${listos.length ? `<button class="listos-banner" id="btnVerListos">🔔 ${listos.length === 1 ? "1 pedido listo" : listos.length + " pedidos listos"} · ${listos.map(p => p.mesa).join(", ")} — toca para ver</button>` : ""}
+  <main>${state.tab === "menu" ? (nombreMesa ? renderMenu() : renderSinMesa()) : renderPedidos()}</main>
+  ${state.tab === "menu" && nombreMesa && state.carrito.length && !state.comandaAbierta ? renderCartBar() : ""}
   ${renderDrawer()}
   ${renderMenuDrawer()}
   `;
@@ -545,14 +625,24 @@ function renderSinMesa() {
 }
 function renderMenuDrawer() {
   const abierta = state.menuAbierto;
-  const mesas = Array.from({ length: 20 }, (_, i) => i + 1);
+  const nombreMesa = nombreMesaActual();
+  const mesasOrdenadas = Object.entries(state.mesas)
+    .filter(([, m]) => m && m.activa !== false)
+    .sort((a, b) => (a[1].nombre || "").localeCompare(b[1].nombre || "", "es", { numeric: true }));
   return `
   <div class="backdrop ${abierta ? "show" : ""}" id="backdropMenu"></div>
   <div class="drawer ${abierta ? "show" : ""}">
     <div class="drawer-head"><h3>Menú</h3><button class="drawer-close" id="btnCerrarMenu">✕</button></div>
     <div class="drawer-body">
-      <p class="mesa-actual">${state.mesa ? "Mesa actual: " + state.mesa : "Todavía no has elegido mesa"}</p>
-      <div class="mesas">${mesas.map(n => `<button class="mesa-btn ${n === state.mesa ? "on" : ""}" data-n="${n}">${n}</button>`).join("")}</div>
+      <p class="mesa-actual">${nombreMesa ? "Mesa actual: " + escapeHtml(nombreMesa) : "Todavía no has elegido mesa"}</p>
+      ${nombreMesa && !(mesaActual() && mesaActual().pedidoActivoId) ? `<button class="link-btn" id="btnLiberarMesa" style="margin:-8px 0 14px">¿La tomaste por error? Liberarla</button>` : ""}
+      <div class="mesas">${mesasOrdenadas.length ? mesasOrdenadas.map(([id, m]) => {
+        const esMia = m.meseroId === state.uid;
+        const ocupadaPorOtro = m.estado === "ocupada" && !esMia;
+        return `<button class="mesa-btn ${id === state.mesaId ? "on" : ""} ${ocupadaPorOtro ? "ocupada" : ""}"
+          data-id="${id}" ${ocupadaPorOtro ? "disabled" : ""}
+          title="${ocupadaPorOtro ? "Ocupada · Atendida por " + escapeHtml(m.meseroNombre || "otro mesero") : ""}">${escapeHtml(m.nombre)}</button>`;
+      }).join("") : `<p style="grid-column:1/-1;color:var(--color-neutral-500);font-size:13px">Todavía no hay mesas creadas — pídele a un admin que las agregue desde panel-admin.</p>`}</div>
     </div>
     <div class="drawer-foot">
       <button class="btn-ghost" id="btnSalir" style="width:100%">Salir</button>
@@ -597,7 +687,7 @@ function renderDrawer() {
   return `
   <div class="backdrop ${abierta ? "show" : ""}" id="backdrop"></div>
   <div class="drawer ${abierta ? "show" : ""}">
-    <div class="drawer-head"><h3>Comanda · Mesa ${state.mesa}</h3><button class="drawer-close" id="btnCerrarDrawer">✕</button></div>
+    <div class="drawer-head"><h3>Comanda · ${escapeHtml(nombreMesaActual() || "")}</h3><button class="drawer-close" id="btnCerrarDrawer">✕</button></div>
     <div class="drawer-body">${lineas}</div>
     <div class="drawer-foot">
       <div class="drawer-total"><span>Total</span><span>${cop(total())}</span></div>
@@ -619,7 +709,7 @@ function renderPedidos() {
     const color = p.estado === "listo" ? "var(--color-accent-2-600)" : p.estado === "entregado" ? "var(--color-neutral-500)" : "var(--color-accent)";
     const pasos = ["Enviado", "En preparación", "Listo", "Servido"];
     return `<div class="pedido-card ${p.estado === "listo" ? "listo" : ""}">
-      <div class="p-top"><span class="p-mesa">Mesa ${escapeHtml(String(p.mesa))}</span><span class="p-badge" style="background:${color}">${escapeHtml(ETIQUETA[p.estado] || p.estado)}</span></div>
+      <div class="p-top"><span class="p-mesa">${escapeHtml(String(p.mesa ?? "—"))}</span><span class="p-badge" style="background:${color}">${escapeHtml(ETIQUETA[p.estado] || p.estado)}</span></div>
       <p class="p-meta">${escapeHtml(p.codigo || id)} · hace ${min} min · ${(p.lineas || []).reduce((n, l) => n + l.qty, 0)} ítems</p>
       <div class="pasos">${pasos.map((nombre, i) => `<div><div class="paso-bar" style="background:${i <= idx ? color : "var(--color-neutral-300)"}"></div><div class="paso-label" style="color:${i <= idx ? "var(--color-neutral-800)" : "var(--color-neutral-500)"}">${nombre}</div></div>`).join("")}</div>
       <div class="p-lineas">${(p.lineas || []).map(l => `<div class="p-linea"><span class="desc">${l.qty}× ${escapeHtml(l.nombre)}${l.nota ? `<span class="nota">${escapeHtml(l.nota)}</span>` : ""}</span><span>${cop(l.precio * l.qty)}</span></div>`).join("")}</div>
@@ -639,7 +729,8 @@ function bindApp() {
   const btnElegirMesa = document.getElementById("btnElegirMesa"); if (btnElegirMesa) btnElegirMesa.onclick = () => setState({ menuAbierto: true });
   const backdropMenu = document.getElementById("backdropMenu"); if (backdropMenu) backdropMenu.onclick = () => setState({ menuAbierto: false });
   const btnCerrarMenu = document.getElementById("btnCerrarMenu"); if (btnCerrarMenu) btnCerrarMenu.onclick = () => setState({ menuAbierto: false });
-  document.querySelectorAll(".mesa-btn").forEach(b => b.onclick = () => setState({ mesa: Number(b.dataset.n), menuAbierto: false }));
+  document.querySelectorAll(".mesa-btn:not([disabled])").forEach(b => b.onclick = () => tomarMesa(b.dataset.id));
+  const btnLiberarMesa = document.getElementById("btnLiberarMesa"); if (btnLiberarMesa) btnLiberarMesa.onclick = liberarMiMesaSinPedido;
   document.getElementById("btnSalir").onclick = salir;
 
   document.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => setState({ cat: b.dataset.cat }));

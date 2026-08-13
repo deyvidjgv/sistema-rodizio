@@ -68,6 +68,7 @@
   .badge-estado.inactivo{background:var(--color-neutral-200);color:var(--color-neutral-600)}
   .rol-tag{display:inline-block;background:var(--color-accent-100);color:var(--color-accent-700);border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin:1px 3px 1px 0}
   .empty-tabla{text-align:center;color:var(--color-neutral-500);padding:26px 10px;font-size:13px}
+  .link-btn{border:0;background:none;color:var(--color-accent-700);font-size:12.5px;font-weight:700;cursor:pointer;padding:0;margin-right:12px;white-space:nowrap}
 
   .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--color-neutral-900);color:var(--color-bg);padding:12px 20px;border-radius:999px;font-size:13px;z-index:40;box-shadow:var(--shadow-lg);animation:rzToast 2.6s ease forwards;white-space:nowrap}
 </style>
@@ -123,6 +124,22 @@
       <table>
         <thead><tr><th>Nombre</th><th>Usuario</th><th>Roles</th><th>Estado</th></tr></thead>
         <tbody id="tbodyTrabajadores"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Mesas</h2>
+    <p class="sub">Nombre libre, no solo números — ej. "Terraza 1", "Barra 3", "VIP". Las mesas inactivas no aparecen para elegir en mesero-app.</p>
+    <form id="formMesa">
+      <div class="field"><label>Nombre de la mesa</label><input id="fNombreMesa" placeholder="Ej. Mesa 5 o Terraza 1"></div>
+      <button class="cta" id="btnCrearMesa" type="submit">Agregar mesa</button>
+      <p class="err hidden" id="errMesa"></p>
+    </form>
+    <div id="tablaMesasWrap" style="margin-top:18px">
+      <table>
+        <thead><tr><th>Mesa</th><th>Estado</th><th>Atendida por</th><th></th></tr></thead>
+        <tbody id="tbodyMesas"></tbody>
       </table>
     </div>
   </section>
@@ -246,6 +263,75 @@ async function crearTrabajador(e) {
   btn.disabled = false; btn.textContent = "Crear trabajador";
 }
 
+/* ── Mesas — nombre libre (no solo números), estado libre/ocupada
+   controlado por mesero-app al tomarlas y por panel-caja al cobrar
+   (ver /mesas en claude.md). Aquí solo se crean, renombran y
+   activan/desactivan — alcance a propósito reducido, igual que
+   trabajadores. ── */
+async function cargarMesas() {
+  const tbody = $("tbodyMesas");
+  let todas;
+  try { todas = (await dbGet("/mesas")) || {}; }
+  catch (e) { tbody.innerHTML = `<tr><td colspan="4" class="empty-tabla">No se pudo cargar — revisa tu conexión y recarga.</td></tr>`; return; }
+  const filas = Object.entries(todas);
+  if (!filas.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-tabla">Todavía no hay mesas — agrega la primera arriba</td></tr>`;
+    return;
+  }
+  filas.sort((a, b) => (a[1].nombre || "").localeCompare(b[1].nombre || ""));
+  tbody.innerHTML = filas.map(([id, m]) => {
+    const inactiva = m.activa === false;
+    const ocupada = m.estado === "ocupada";
+    return `<tr>
+      <td>${escapeHtml(m.nombre || "—")}</td>
+      <td><span class="badge-estado ${ocupada ? "inactivo" : "activo"}">${inactiva ? "inactiva" : (ocupada ? "ocupada" : "libre")}</span></td>
+      <td>${escapeHtml(m.meseroNombre || "—")}</td>
+      <td>
+        <button class="link-btn" data-editar-mesa="${id}" data-nombre="${escapeHtml(m.nombre || "")}">Renombrar</button>
+        <button class="link-btn" data-toggle-mesa="${id}" data-activa="${inactiva ? "0" : "1"}">${inactiva ? "Activar" : "Desactivar"}</button>
+      </td>
+    </tr>`;
+  }).join("");
+
+  document.querySelectorAll("[data-editar-mesa]").forEach((b) => b.onclick = () => editarNombreMesa(b.dataset.editarMesa, b.dataset.nombre));
+  document.querySelectorAll("[data-toggle-mesa]").forEach((b) => b.onclick = () => toggleMesaActiva(b.dataset.toggleMesa, b.dataset.activa === "1"));
+}
+
+async function crearMesa(e) {
+  e.preventDefault();
+  const errEl = $("errMesa");
+  errEl.classList.add("hidden");
+  const nombre = $("fNombreMesa").value.trim();
+  if (nombre.length < 1) { errEl.textContent = "Escribe un nombre para la mesa."; errEl.classList.remove("hidden"); return; }
+
+  const btn = $("btnCrearMesa");
+  btn.disabled = true; btn.textContent = "Agregando…";
+  try {
+    await dbPush("/mesas", { nombre, activa: true, estado: "libre", meseroId: null, meseroNombre: null, pedidoActivoId: null });
+    toast("Mesa agregada: " + nombre);
+    $("formMesa").reset();
+    await cargarMesas();
+  } catch (err) {
+    errEl.textContent = "No se pudo crear la mesa — revisa tu conexión.";
+    errEl.classList.remove("hidden");
+  }
+  btn.disabled = false; btn.textContent = "Agregar mesa";
+}
+
+async function editarNombreMesa(id, nombreActual) {
+  const nuevo = prompt("Nuevo nombre de la mesa:", nombreActual || "");
+  if (nuevo === null) return;
+  const limpio = nuevo.trim();
+  if (!limpio) return;
+  try { await dbUpdate(`/mesas/${id}`, { nombre: limpio }); await cargarMesas(); }
+  catch (e) { toast("No se pudo renombrar — revisa tu conexión."); }
+}
+
+async function toggleMesaActiva(id, activaActual) {
+  try { await dbUpdate(`/mesas/${id}`, { activa: !activaActual }); await cargarMesas(); }
+  catch (e) { toast("No se pudo actualizar — revisa tu conexión."); }
+}
+
 async function iniciar() {
   await esperarAuthListo();
   pintarRolesGrid();
@@ -266,9 +352,11 @@ async function iniciar() {
     $("vistaCargando").style.display = "none";
     $("app").style.display = "block";
     cargarTrabajadores();
+    cargarMesas();
   });
 
   $("formCrear").addEventListener("submit", crearTrabajador);
+  $("formMesa").addEventListener("submit", crearMesa);
   $("btnLogout").addEventListener("click", async () => {
     await logout();
     window.location.href = "../index.html";

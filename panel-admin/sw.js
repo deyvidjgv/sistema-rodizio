@@ -3,14 +3,16 @@
 // (RTDB) nunca se cachean — deben ir siempre en vivo. Las llamadas de
 // autenticación son POST y el fetch handler ya las deja pasar de largo
 // (solo intercepta GET), así que no hace falta excluirlas aparte.
-const CACHE = "rodizio-admin-v2";
+const CACHE = "rodizio-admin-v7";
 const SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./icon-192.png",
-  "./icon-512.png",
-  "./icon-512-maskable.png",
+  "../icons/apple-touch-icon.png",
+  "../icons/favicon.png",
+  "../icons/icon-192.png",
+  "../icons/icon-512.png",
+  "../icons/icon-maskable-512.png",
   "./app.js",
   "./styles.css",
   "../shared/theme.css",

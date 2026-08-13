@@ -1166,8 +1166,8 @@
         Object.assign(state, patch);
         render();
       }
-      function aviso(t) {
-        window.mostrarToast(t);
+      function aviso(t, opts) {
+        window.mostrarToast(t, opts);
       }
 
       /* ── Escucha en vivo de /pedidos (solo los del mesero en turno se muestran) ── */
@@ -1279,12 +1279,12 @@
 
       function avisarListo(p) {
         beepListo();
-        aviso('🔔 ' + p.mesa + ' lista · ' + (p.codigo || ''));
+        aviso(p.mesa + ' lista · ' + (p.codigo || ''), { icono: 'notifications' });
         if ('Notification' in window && Notification.permission === 'granted') {
           try {
             new Notification(p.mesa + ' lista para servir', {
               body: (p.codigo || 'Pedido') + ' · toca para ver el detalle',
-              icon: 'icon-192.png',
+              icon: '../icons/icon-192.png',
               tag: 'rodizio-listo',
             });
           } catch (e) {}
@@ -1326,11 +1326,12 @@
             window.location.href = '../index.html';
             return;
           }
-          if (
-            !perfil ||
-            perfil.estado !== 'activo' ||
-            (!hasRole(perfil, 'mesero') && !hasRole(perfil, 'admin'))
-          ) {
+          // Cualquier trabajador activo puede operar como mesero — ya no
+          // depende de que el admin le asigne el rol "mesero" puntualmente
+          // (los turnos rotan). Solo se cierra sesión de verdad si la cuenta
+          // no existe o está inactiva; si el perfil es válido no hay que
+          // sacarlo de Firebase Authentication.
+          if (!perfil || perfil.estado !== 'activo') {
             await logout();
             window.location.href = '../index.html';
             return;
@@ -1492,8 +1493,9 @@
       function renderCargando() {
         return `
   <div class="auth-wrap">
-    <div class="auth-logo"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20 L20 4" stroke="#f5ead8" stroke-width="2.4" stroke-linecap="round"/><circle cx="7.3" cy="16.7" r="3" fill="#f5ead8"/><circle cx="12" cy="12" r="3" fill="#f5ead8"/><circle cx="16.7" cy="7.3" r="3" fill="#f5ead8"/></svg></div>
+    <div class="auth-logo"><img src="../icons/icon-192.png" alt="Rodizio"></div>
     <h1 class="auth-title">Rodizio</h1>
+    <div class="spinner"></div>
     <p class="auth-sub">Verificando sesión…</p>
   </div>`;
       }
@@ -1510,7 +1512,7 @@
   <div class="topbar">
     <div class="avatar">${escapeHtml((state.mesero || '?').trim().charAt(0).toUpperCase())}</div>
     <div class="who"><b>${escapeHtml(state.mesero)}</b><span>${nombreMesa ? escapeHtml(nombreMesa) : 'Sin mesa'} · @${escapeHtml(state.perfil.usuario || '')}</span></div>
-    <button class="btn-instalar-pwa" id="btnInstalarApp">📲 Instalar</button>
+    <button class="btn-instalar-pwa" id="btnInstalarApp"><svg class="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Instalar</button>
     <button class="logout" id="btnSalir">Salir</button>
   </div>
   <div class="tabs">
@@ -1518,7 +1520,7 @@
     <button class="tab ${state.tab === 'pedidos' ? 'on' : ''}" id="tabPedidos">Pedidos ${activos.length ? '· ' + activos.length : ''}</button>
   </div>
   <p class="connbar">${state.conectado ? '● Conectado con cocina' : '○ Conectando con cocina…'}</p>
-  ${listos.length ? `<button class="listos-banner" id="btnVerListos">🔔 ${listos.length === 1 ? '1 pedido listo' : listos.length + ' pedidos listos'} · ${listos.map((p) => p.mesa).join(', ')} — toca para ver</button>` : ''}
+  ${listos.length ? `<button class="listos-banner" id="btnVerListos"><span class="material-symbols-outlined">notifications</span> ${listos.length === 1 ? '1 pedido listo' : listos.length + ' pedidos listos'} · ${listos.map((p) => p.mesa).join(', ')} — toca para ver</button>` : ''}
   <main>${state.tab === 'mesas' ? renderMesas() : state.tab === 'menu' ? (nombreMesa ? renderMenu() : renderSinMesa()) : renderPedidos()}</main>
   ${state.tab === 'menu' && nombreMesa && state.carrito.length && !state.comandaAbierta ? renderCartBar() : ''}
   ${renderDrawer()}
@@ -1594,7 +1596,7 @@
 
         const editandoLabel = state.editandoPedidoId
           ? `<div style="background:var(--color-accent-100);border:1px solid var(--color-accent-300);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--color-accent-700);display:flex;align-items:center;gap:8px">
-        <span style="font-weight:700">✏️ Editando pedido</span>
+        <span style="font-weight:700;display:inline-flex;align-items:center;gap:5px"><span class="material-symbols-outlined">edit</span>Editando pedido</span>
         <button id="btnCancelarEdicion" style="margin-left:auto;border:1px solid var(--color-accent-300);background:transparent;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--color-accent-700);cursor:pointer">Cancelar edición</button>
       </div>`
           : '';
@@ -1604,7 +1606,7 @@
   <div class="menu-search-wrap">
     <svg class="menu-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
     <input class="menu-search" id="menuSearch" type="text" placeholder="Buscar producto…" value="${escapeHtml(state.busqueda)}">
-    ${state.busqueda ? '<button class="menu-search-clear" id="menuSearchClear">✕</button>' : ''}
+    ${state.busqueda ? '<button class="menu-search-clear" id="menuSearchClear"><span class="material-symbols-outlined">close</span></button>' : ''}
   </div>
   ${!buscando ? `<div class="cats">${CATS.map((c) => `<button class="cat-pill ${c === state.cat ? 'on' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}</div>` : ''}
   ${items.length === 0 && buscando ? '<div class="empty-state" style="padding:30px 0"><p>No se encontraron productos con "' + escapeHtml(state.busqueda) + '"</p></div>' : ''}
@@ -1650,7 +1652,7 @@
         return `
   <div class="backdrop ${abierta ? 'show' : ''}" id="backdrop"></div>
   <div class="drawer ${abierta ? 'show' : ''}">
-    <div class="drawer-head"><h3>Comanda · ${escapeHtml(nombreMesaActual() || '')}</h3><button class="drawer-close" id="btnCerrarDrawer">✕</button></div>
+    <div class="drawer-head"><h3>Comanda · ${escapeHtml(nombreMesaActual() || '')}</h3><button class="drawer-close" id="btnCerrarDrawer"><span class="material-symbols-outlined">close</span></button></div>
     <div class="drawer-body">${lineas}</div>
     <div class="drawer-foot">
       <div class="drawer-total"><span>Total</span><span>${cop(total())}</span></div>
@@ -1682,7 +1684,7 @@
             // Botón de editar solo para pedidos en estado "enviado"
             const btnEditar =
               p.estado === 'enviado'
-                ? `<button class="btn-servir" style="background:var(--color-accent);margin-top:8px" data-editar="${id}">✏️ Editar pedido</button>`
+                ? `<button class="btn-servir" style="background:var(--color-accent);margin-top:8px" data-editar="${id}"><span class="material-symbols-outlined">edit</span>Editar pedido</button>`
                 : '';
             return `<div class="pedido-card ${p.estado === 'listo' ? 'listo' : ''}">
       <div class="p-top"><span class="p-mesa">${escapeHtml(String(p.mesa ?? '—'))}</span><span class="p-badge" style="background:${color}">${escapeHtml(ETIQUETA[p.estado] || p.estado)}</span></div>

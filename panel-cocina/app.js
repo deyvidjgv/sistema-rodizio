@@ -121,7 +121,7 @@ function fillEntregados(entregados) {
     .slice(0, 8);
   const cont = document.getElementById("entregadosChips");
   cont.innerHTML = ultimos.length
-    ? ultimos.map(([id, p]) => `<span class="entregado-chip"><span class="ok">✓</span>${escapeHtml(p.codigo || id)} · ${escapeHtml(String(p.mesa ?? "—"))}</span>`).join("")
+    ? ultimos.map(([id, p]) => `<span class="entregado-chip"><span class="material-symbols-outlined ok">check_circle</span>${escapeHtml(p.codigo || id)} · ${escapeHtml(String(p.mesa ?? "—"))}</span>`).join("")
     : `<span class="entregado-chip">Todavía no se ha entregado ningún pedido</span>`;
 }
 
@@ -148,7 +148,11 @@ async function iniciar() {
     let perfil;
     try { perfil = await getWorkerProfile(user.uid); }
     catch (e) { window.location.href = "../index.html"; return; }
-    if (!perfil || perfil.estado !== "activo" || (!hasRole(perfil, "cocinero") && !hasRole(perfil, "admin"))) {
+    // Cualquier trabajador activo puede operar cocina — ya no depende de que
+    // el admin le asigne el rol "cocinero" puntualmente (los turnos rotan).
+    // Solo se cierra sesión de verdad si la cuenta no existe o está inactiva;
+    // si el perfil es válido no hay que sacarlo de Firebase Authentication.
+    if (!perfil || perfil.estado !== "activo") {
       await logout();
       window.location.href = "../index.html";
       return;

@@ -272,7 +272,11 @@ async function iniciar() {
     let perfil;
     try { perfil = await getWorkerProfile(user.uid); }
     catch (e) { window.location.href = "../index.html"; return; }
-    if (!perfil || perfil.estado !== "activo" || (!hasRole(perfil, "cajero") && !hasRole(perfil, "admin"))) {
+    // Cualquier trabajador activo puede operar caja — ya no depende de que
+    // el admin le asigne el rol "cajero" puntualmente (los turnos rotan).
+    // Solo se cierra sesión de verdad si la cuenta no existe o está inactiva;
+    // si el perfil es válido no hay que sacarlo de Firebase Authentication.
+    if (!perfil || perfil.estado !== "activo") {
       await logout();
       window.location.href = "../index.html";
       return;

@@ -1,13 +1,15 @@
 // Rodizio — service worker: cachea el cascarón de la app so it opens instantly
 // and keeps working with no signal (e.g. inside the restaurant kitchen area).
-const CACHE = "rodizio-v10";
+const CACHE = "rodizio-v15";
 const SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./icon-192.png",
-  "./icon-512.png",
-  "./icon-512-maskable.png",
+  "../icons/apple-touch-icon.png",
+  "../icons/favicon.png",
+  "../icons/icon-192.png",
+  "../icons/icon-512.png",
+  "../icons/icon-maskable-512.png",
   "./app.js",
   "./styles.css",
   "../shared/theme.css",

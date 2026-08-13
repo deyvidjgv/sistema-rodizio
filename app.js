@@ -17,14 +17,8 @@
 
     const $ = (id) => document.getElementById(id);
 
-    // Solo true si revisarSiMostrarBootstrap() confirmó que /trabajadores
-    // todavía no tiene ningún admin activo — ver esa función más abajo.
-    let bootstrapPermitido = false;
-
     function mostrar(id) {
       ["formLogin", "vistaRoles", "vistaCargando"].forEach((otro) => $(otro).classList.toggle("hidden", otro !== id));
-      $("btnMostrarRegistro").classList.toggle("hidden", id !== "formLogin" || !bootstrapPermitido);
-      $("formRegistro").classList.add("hidden");
     }
 
     function mostrarError(msg) {
@@ -81,54 +75,30 @@
         return;
       }
 
-      const roles = perfil.rolesPermitidos || [];
-      if (roles.length === 0) {
-        mostrarError("Tu cuenta no tiene ningún rol asignado todavía. Contacta al administrador.");
-        await logout();
-        mostrar("formLogin");
-        return;
-      }
-      if (roles.length === 1) {
-        irARol(roles[0]);
+      // Cualquier trabajador activo puede operar mesero, caja o cocina — el
+      // rol real lo define el panel/dispositivo en el que trabaje hoy, no
+      // una lista fija que el admin tenga que ir reasignando turno a turno.
+      // "admin" sigue siendo el único rol que hay que asignar explícitamente
+      // (desde panel-admin), porque da acceso a gestionar trabajadores.
+      const opciones = ["mesero", "cajero", "cocinero"];
+      if (hasRole(perfil, "admin")) opciones.unshift("admin");
+
+      if (opciones.length === 1) {
+        irARol(opciones[0]);
         return;
       }
 
-      // Varios roles: dejar elegir.
+      // Varias opciones (el caso normal): dejar elegir con cuál entra hoy.
       $("bienvenida").textContent = "Hola, " + (perfil.nombre ? perfil.nombre.split(" ")[0] : "de nuevo");
-      $("listaRoles").innerHTML = roles.map((rol) => `
-    <button class="rol-btn" data-rol="${rol}">
-      ${NOMBRE_ROL[rol] || rol}
-      ${RUTA_POR_ROL[rol] ? "" : '<span class="tag">Próximamente</span>'}
-    </button>`).join("");
+      $("listaRoles").innerHTML = opciones.map((rol) => `
+    <button class="rol-btn" data-rol="${rol}">${NOMBRE_ROL[rol] || rol}</button>`).join("");
       document.querySelectorAll(".rol-btn").forEach((b) => b.onclick = () => irARol(b.dataset.rol));
       mostrar("vistaRoles");
-    }
-
-    // Mitigación de cliente para el bootstrap: solo se ofrece crear un admin
-    // nuevo si todavía no hay ninguno activo en /trabajadores. No reemplaza
-    // las reglas de Firebase RTDB — solo evita que se muestre el botón en el
-    // caso normal (sistema ya en uso), que es cuando más daño podría hacer.
-    async function revisarSiMostrarBootstrap() {
-      try {
-        const todos = (await dbGet("/trabajadores")) || {};
-        const hayAdmin = Object.values(todos).some(
-          (t) => t && t.estado === "activo" && Array.isArray(t.rolesPermitidos) && t.rolesPermitidos.includes("admin")
-        );
-        if (!hayAdmin) {
-          bootstrapPermitido = true;
-          // Si ya se está mostrando el login (caso normal: nadie con sesión
-          // activa), refleja el cambio de inmediato sin esperar otro evento.
-          if (!$("formLogin").classList.contains("hidden")) mostrar("formLogin");
-        }
-      } catch (e) {
-        // Sin conexión o sin permiso de lectura: no se muestra el botón por precaución.
-      }
     }
 
     async function iniciar() {
       await esperarAuthListo();
       mostrar("vistaCargando");
-      revisarSiMostrarBootstrap();
 
       onAuthStateChanged(async (user) => {
         if (user) {
@@ -169,54 +139,6 @@
         await logout();
         mostrar("formLogin");
         $("fPassword").value = "";
-      });
-
-      // BOOTSTRAP TEMPORAL — ver comentario junto al <form id="formRegistro">.
-      $("btnMostrarRegistro").addEventListener("click", () => {
-        $("formLogin").classList.add("hidden");
-        $("btnMostrarRegistro").classList.add("hidden");
-        $("formRegistro").classList.remove("hidden");
-        $("errRegistro").classList.add("hidden");
-        $("okRegistro").classList.add("hidden");
-      });
-
-      $("btnCancelarRegistro").addEventListener("click", () => mostrar("formLogin"));
-
-      $("formRegistro").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const errEl = $("errRegistro"), okEl = $("okRegistro");
-        errEl.classList.add("hidden"); okEl.classList.add("hidden");
-
-        const nombre = $("rNombre").value.trim();
-        const usuario = $("rUsuario").value.trim().toLowerCase();
-        const password = $("rPassword").value;
-
-        if (nombre.length < 3) { errEl.textContent = "Escribe el nombre completo."; errEl.classList.remove("hidden"); return; }
-        if (!/^[a-z0-9_-]{3,20}$/.test(usuario)) { errEl.textContent = "Usuario: 3–20 caracteres, solo letras/números/_/-."; errEl.classList.remove("hidden"); return; }
-        if (password.length < 6) { errEl.textContent = "La contraseña debe tener al menos 6 caracteres."; errEl.classList.remove("hidden"); return; }
-
-        const btn = $("btnRegistrar");
-        btn.disabled = true; btn.textContent = "Creando…";
-        try {
-          const uid = await crearCuenta(usuario, password, nombre);
-          const ahora = Date.now();
-          await dbSet(`/trabajadores/${uid}`, {
-            nombre, usuario, rolesPermitidos: ["admin"],
-            estado: "activo", creado: ahora, actualizado: ahora
-          });
-          okEl.textContent = `Cuenta creada — inicia sesión con @${usuario}.`;
-          okEl.classList.remove("hidden");
-          $("formRegistro").reset();
-        } catch (err) {
-          const code = err && err.code;
-          let msg = "No se pudo crear la cuenta.";
-          if (code === "auth/email-already-in-use") msg = "Ese usuario ya existe.";
-          else if (code === "auth/weak-password") msg = "La contraseña es muy débil.";
-          else if (code === "auth/network-request-failed") msg = "Sin conexión — revisa tu internet.";
-          errEl.textContent = msg;
-          errEl.classList.remove("hidden");
-        }
-        btn.disabled = false; btn.textContent = "Crear administrador";
       });
     }
 

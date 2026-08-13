@@ -3,15 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<meta name="theme-color" content="#c67139">
+<meta name="theme-color" content="#b10101">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Rodizio Admin">
 <title>Rodizio · Administración</title>
-<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="../icons/favicon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../icons/icon-512.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,16 +23,20 @@
 </head>
 <body>
 
-<div id="vistaCargando" class="cargando">Verificando sesión…</div>
+<div id="vistaCargando" class="cargando cargando-wrap">
+  <div class="cargando-logo"><img src="../icons/icon-192.png" alt="Rodizio"></div>
+  <div class="spinner"></div>
+  <p class="cargando-texto">Verificando sesión…</p>
+</div>
 
 <div id="app" style="display:none">
 <header>
   <div class="headwrap">
     <div class="brand">
-      <div class="brand-badge"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20 L20 4" stroke="#f5ead8" stroke-width="2.4" stroke-linecap="round"/><circle cx="7.3" cy="16.7" r="3" fill="#f5ead8"/><circle cx="12" cy="12" r="3" fill="#f5ead8"/><circle cx="16.7" cy="7.3" r="3" fill="#f5ead8"/></svg></div>
+      <div class="brand-badge"><img src="../icons/icon-192.png" alt="Rodizio"></div>
       <div><h1>Rodizio</h1><small>Administración</small></div>
     </div>
-    <button class="btn-instalar-pwa" id="btnInstalarApp">📲 Instalar App</button>
+    <button class="btn-instalar-pwa" id="btnInstalarApp"><svg class="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Instalar App</button>
     <button class="logout" id="btnLogout">Salir</button>
   </div>
 </header>
@@ -48,18 +53,16 @@
   </section>
 
   <section class="card">
-    <h2>Crear trabajador</h2>
-    <p class="sub">Se crea la cuenta en Firebase Authentication y su perfil en /trabajadores.</p>
+    <h2 id="formTitulo">Crear trabajador</h2>
+    <p class="sub" id="formSub">Se crea la cuenta en Firebase Authentication y su perfil en /trabajadores. Cualquier trabajador activo puede operar mesero, caja o cocina — el panel que use depende del dispositivo, no hace falta asignárselo aquí.</p>
     <form id="formCrear">
       <div class="field"><label>Nombre completo</label><input id="fNombre" placeholder="Ej. Juan Pérez"></div>
       <div class="field"><label>Usuario</label><input id="fUsuario" placeholder="Ej. juanp" autocomplete="off"></div>
-      <div class="field"><label>Contraseña</label><input id="fPassword" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
-      <div class="field">
-        <label>Roles permitidos</label>
-        <div class="roles-grid" id="rolesGrid"></div>
-      </div>
-      <label class="estado-toggle"><input type="checkbox" id="fActivo" checked> Cuenta activa desde el inicio</label>
+      <div class="field" id="campoPassword"><label>Contraseña</label><input id="fPassword" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+      <label class="estado-toggle"><input type="checkbox" id="fEsAdmin"> Acceso de administrador (gestionar trabajadores)</label>
+      <label class="estado-toggle"><input type="checkbox" id="fActivo" checked> Cuenta activa</label>
       <button class="cta" id="btnCrear" type="submit">Crear trabajador</button>
+      <button class="logout-link hidden" id="btnCancelarEdicion" type="button">Cancelar edición</button>
       <p class="err hidden" id="errCrear"></p>
       <p class="ok hidden" id="okCrear"></p>
     </form>
@@ -67,10 +70,10 @@
 
   <section class="card">
     <h2>Trabajadores</h2>
-    <p class="sub">Vista de solo lectura por ahora — editar, desactivar y restablecer contraseña llegan más adelante.</p>
+    <p class="sub">Activar/desactivar quita o da acceso de inmediato. Eliminar borra su perfil — no puede volver a entrar, aunque su cuenta de acceso queda registrada en Firebase Authentication (no hay forma de borrarla desde aquí, solo desde la consola de Firebase).</p>
     <div id="tablaWrap">
       <table>
-        <thead><tr><th>Nombre</th><th>Usuario</th><th>Roles</th><th>Estado</th></tr></thead>
+        <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
         <tbody id="tbodyTrabajadores"></tbody>
       </table>
     </div>
@@ -84,6 +87,6 @@
 <script src="../shared/ui.js"></script>
 <script src="../shared/roles.js"></script>
 <script type="module" src="../shared/auth.js"></script>
-<script type="module" src="app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

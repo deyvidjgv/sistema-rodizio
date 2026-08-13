@@ -1,12 +1,13 @@
 /* Rodizio — tokens de diseño y reset base compartidos por todas las apps
    (mesero-app, panel-caja, panel-cocina, panel-cliente, panel-admin).
-   Paleta "Organic": crema/terracota/salvia, Caprasimo (títulos) + Figtree (cuerpo).
+   Paleta "Rodizio": crema cálido + rojo profundo (del isotipo, #b10101) + salvia
+   como color secundario/semántico. Caprasimo (títulos) + Figtree (cuerpo).
    No poner aquí nada específico de una sola app — solo lo 100% común. */
 :root {
   --color-bg: #f5ead8;
   --color-surface: #ebddc5;
   --color-text: #201e1d;
-  --color-accent: #c67139;
+  --color-accent: #b10101;
   --color-accent-2: #7a8a5e;
   --color-divider: color-mix(in srgb, #201e1d 16%, transparent);
   --color-neutral-100: #f9f4ed;
@@ -18,12 +19,12 @@
   --color-neutral-700: #645c50;
   --color-neutral-800: #474238;
   --color-neutral-900: #2e2b25;
-  --color-accent-100: #fff2eb;
-  --color-accent-200: #ffe1d0;
-  --color-accent-300: #ffc6a5;
-  --color-accent-500: #d67f48;
-  --color-accent-600: #b2622d;
-  --color-accent-700: #8c491a;
+  --color-accent-100: #eed3c3;
+  --color-accent-200: #e3ada0;
+  --color-accent-300: #d27168;
+  --color-accent-500: #a00505;
+  --color-accent-600: #8a0b0a;
+  --color-accent-700: #6d1211;
   --color-accent-2-100: #f0fae1;
   --color-accent-2-300: #ccdbb2;
   --color-accent-2-500: #8fa073;

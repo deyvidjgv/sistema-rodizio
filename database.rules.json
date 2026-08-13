@@ -6,7 +6,7 @@
     "trabajadores": {
       ".read": "auth != null",
       "$uid": {
-        ".write": "auth != null && (root.child('trabajadores').child(auth.uid).child('rolesPermitidos').hasChild('admin') || !root.child('trabajadores').exists())"
+        ".write": "auth != null && root.child('trabajadores').child(auth.uid).child('rolesPermitidos').hasChild('admin')"
       }
     },
 

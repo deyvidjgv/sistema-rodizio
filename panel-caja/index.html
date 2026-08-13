@@ -201,28 +201,16 @@ document.getElementById("soundBtn").addEventListener("click", () => {
     : '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/>';
 });
 
-/* ── Cobro: el único cambio que hace caja sobre un pedido.
-   Además, si el pedido tiene mesaId (mesa tomada vía mesero-app) y ya
-   no queda ningún otro pedido sin pagar de esa misma mesa, la libera
-   en /mesas — una mesa puede tener varias comandas en una sola visita
-   (entrada, plato fuerte…), así que no basta con pagar la primera. ── */
+/* ── Cobro: el único cambio que hace caja sobre un pedido. La mesa no
+   se toca acá — en mesero-app, "ocupada" se calcula al vuelo mirando
+   si queda algún pedido de esa mesa sin pagar, así que en cuanto se
+   confirma el último pago, la mesa se ve libre sola. ── */
 async function confirmarPago(id) {
-  const p = pedidos[id];
   try {
     await dbUpdate(`/pedidos/${id}`, { pagado: true, tsPago: Date.now() });
-    if (p && p.mesaId) await liberarMesaSiCorresponde(p.mesaId, id);
   } catch (e) {
     alert("No se pudo confirmar el pago — revisa la conexión e intenta de nuevo.");
   }
-}
-
-async function liberarMesaSiCorresponde(mesaId, idRecienPagado) {
-  const quedaSinPagar = Object.entries(pedidos).some(
-    ([pid, p]) => pid !== idRecienPagado && p && p.mesaId === mesaId && !p.pagado
-  );
-  if (quedaSinPagar) return;
-  try { await dbUpdate(`/mesas/${mesaId}`, { estado: "libre", meseroId: null, meseroNombre: null, pedidoActivoId: null }); }
-  catch (e) {}
 }
 
 /* ── Render ── */

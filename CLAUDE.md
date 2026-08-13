@@ -38,11 +38,7 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
 
 /mesas/{pushId}
   nombre         "Mesa 5" | "Terraza 1" | "Barra 3" | "VIP"   # texto libre, no solo números
-  activa         true                             # false = no aparece para elegir en mesero-app
-  estado         "libre" | "ocupada"
-  meseroId       null | "<uid>"                   # quién la tiene tomada ahora mismo
-  meseroNombre   null | "Juan Pérez"               # solo para mostrar sin tener que buscar /trabajadores
-  pedidoActivoId null | "<pushId de /pedidos>"     # el último pedido creado mientras está ocupada
+  activa         true                             # false = no aparece en mesero-app
 
 /trabajadores/{uid}          # uid = UID de Firebase Authentication
   nombre
@@ -60,17 +56,16 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
 **Flujo de un pedido:** mesero envía (`enviado`) → cocina pasa a `preparacion` → `listo` → mesero marca `entregado` → caja confirma el cobro (`pagado: true`, no cambia `estado`). Las 3 apps escuchan `/pedidos` en vivo por SSE, así que un cambio se ve al instante en todas las pantallas sin refrescar.
 
 **División de responsabilidades por panel** (a propósito, no se pisan):
-- `mesero-app`: crea el pedido (`enviado`), lo marca `entregado` cuando lo sirve, y es la única app que toma/suelta mesas (`/mesas`).
+- `mesero-app`: crea el pedido (`enviado`) y lo marca `entregado` cuando lo sirve en la mesa.
 - `panel-cocina`: avanza `enviado` → `preparacion` → `listo`. No toca cobros ni mesas.
-- `panel-caja`: solo ve pedidos ya `entregado` y confirma el pago (`pagado`/`tsPago`). No avanza el estado del pedido — eso es trabajo de cocina. Sí libera la mesa asociada cuando, tras ese cobro, ya no queda ningún otro pedido sin pagar de esa mesa (una visita puede tener varias comandas).
-- `panel-admin`: crea/renombra/activa/desactiva mesas en `/mesas` — no toma ni libera ninguna (eso es siempre cosa de mesero-app/panel-caja).
+- `panel-caja`: solo ve pedidos ya `entregado` y confirma el pago (`pagado`/`tsPago`). No avanza el estado del pedido ni toca `/mesas` — la mesa se ve libre sola en cuanto ya no queda ningún pedido suyo sin pagar (cálculo al vuelo, no un paso explícito de liberación).
+- `panel-admin`: crea, renombra y activa/desactiva mesas en `/mesas` — solo eso, alcance a propósito reducido.
 
-**Mesas — ocupación y concurrencia** (`mesero-app`):
-- Tomar una mesa es una escritura **condicional** (`dbSetSiCondicion()` en `shared/firebase.js`, mismo mecanismo de ETag/`if-match` que ya usaba `siguienteCodigo()`): solo se asigna si en ese instante sigue `estado: "libre"`. Si dos meseros la tocan casi al mismo tiempo, solo uno gana — el otro ve "Esa mesa la acaba de tomar otro mesero", sin pisar al primero.
-- La ocupación vive **en Firebase**, no en el navegador — recargar la página, cerrar la pestaña o perder conexión **no libera nada**. Al volver a entrar, `recuperarMiMesa()` busca en `/mesas` cuál tiene `meseroId` igual a mi `uid` y la retoma sola, sin volver a preguntar.
-- Una mesa `ocupada` por **otro** mesero se ve deshabilitada en el drawer de mesero-app, con quién la está atendiendo. El mesero dueño siempre puede volver a entrar a la suya.
-- La única forma de que una mesa vuelva a `libre` es que `panel-caja` cobre el último pedido pendiente — cerrar la app o dejarla inactiva no la libera.
-- **Límite aceptado:** las reglas de RTDB siguen abiertas (ver "Limitaciones conocidas" #1), así que el ETag evita choques entre meseros usando la app normal, pero no evita que alguien salte la lógica con un PUT directo a la API — eso solo se arregla cerrando las reglas de verdad (Fase 9).
+**Mesas — sin dueño ni reserva, ocupación calculada al vuelo** (`mesero-app`):
+- `/mesas` solo guarda `nombre` + `activa`. Elegir una mesa es una selección **local** de la pantalla — no escribe nada en Firebase, así que no hay ETag, ni condición de carrera, ni "quién la tomó primero" que resolver.
+- Que una mesa esté "ocupada" (se ve azul) es un cálculo simple sobre `/pedidos`, ya en memoria por el SSE: ocupada = existe algún pedido de esa mesa sin `pagado`. Nada que sincronizar aparte — todos los meseros ven exactamente lo mismo en tiempo real, porque miran la misma fuente.
+- **Cualquier mesero puede elegir cualquier mesa activa, esté libre u ocupada**, para mandarle una comanda nueva — no hay bloqueo exclusivo. Fue una decisión consciente (más simple, sin casos raros de "mesa quedó ocupada para siempre porque el mesero la tomó y nunca la usó") a cambio de no impedir que dos personas trabajen la misma mesa a la vez — aceptable para este negocio.
+- Recargar la página no "pierde" nada — no hay nada que perder, la mesa elegida es solo el estado de esa pantalla en ese momento; el mesero simplemente la vuelve a tocar en la pestaña "Mesas" si hace falta.
 
 ## Convenciones de código
 
@@ -79,7 +74,7 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
 - Sesión: **una sola vez**, en el login raíz (`/index.html`), con Firebase Authentication. Cada app (`mesero-app`, `panel-caja`, `panel-cocina`, `panel-admin`) solo trae un *guard* (`onAuthStateChanged()` + `getWorkerProfile()` + `hasRole()`) que verifica sesión + rol correcto + `estado === "activo"` en cada carga, y redirige a `/` si algo falla — nunca tienen su propio formulario de login. Así, desactivar o borrar un trabajador en `/trabajadores` lo saca de todas las apps en la siguiente carga, sin importar si ya había iniciado sesión antes.
 - Registro de cuenta **no** inicia sesión automáticamente — el flujo intencional es: registrar → volver a login → la persona entra ella misma con su usuario y contraseña.
 - Service worker por app: cachea el cascarón (HTML/CSS/JS/iconos) para offline + instalable. Las peticiones a `firebaseio.com` **nunca** se cachean — siempre deben ir en vivo.
-- `mesero-app` ya **no** tiene una pantalla bloqueante de "elige tu mesa"/turno — entra directo al menú tras el login. La mesa se elige/cambia desde el ícono ☰ (menú hamburguesa) en la barra superior, que abre un drawer con la grilla de mesas + "Salir". Sin mesa elegida, la pestaña Menú muestra un aviso invitando a elegir una en vez del listado de platos.
+- `mesero-app` ya **no** tiene pantalla bloqueante de "elige tu mesa"/turno ni menú hamburguesa — hay 3 pestañas fijas en la barra superior: **Mesas** (grilla siempre visible, es la pestaña inicial), **Menú** y **Pedidos**. Elegir una mesa en la pestaña Mesas es instantáneo (solo cambia qué pestaña ves), sin escritura a Firebase. Sin mesa elegida, la pestaña Menú muestra un aviso invitando a ir a "Mesas" en vez del listado de platos.
 
 ## Estructura de carpetas — ✅ ya aplicada
 
@@ -87,10 +82,10 @@ Firebase Realtime Database, **sin el SDK de Firebase y sin apiKey**. Todo por la
 rodizio/
 ├── shared/
 │   ├── theme.css        tokens de diseño (colores, fuentes, radios, sombras) + reset base
-│   ├── firebase.js      dbUrl / dbGet / dbPush / dbSet / dbUpdate / dbDelete / dbSetSiCondicion / escucharSSE / aplicarEventoSSE / siguienteCodigo
+│   ├── firebase.js      dbUrl / dbGet / dbPush / dbSet / dbUpdate / dbDelete / escucharSSE / aplicarEventoSSE / siguienteCodigo
 │   └── util.js          escapeHtml, fmtCop (formato COP), crearBeep() (fábrica de tonos Web Audio)
 ├── mesero-app/
-│   ├── index.html       menú, comanda, pedidos — mesa se elige/cambia desde el menú ☰
+│   ├── index.html       pestañas Mesas / Menú / Pedidos — comanda, sin bloqueo por mesa
 │   ├── menu.js           159 platos/bebidas + SUGERENCIAS por categoría
 │   ├── manifest.webmanifest, sw.js, icon-192.png, icon-512.png, icon-512-maskable.png
 ├── panel-caja/            tablero + "Entregados hoy" + exportar Excel (ExcelJS vía CDN)
@@ -150,7 +145,7 @@ rodizio/
 - [x] `mesero-app` reemplazó el login por PIN por el guard de sesión + rol `mesero`, igual que las demás apps.
 - [ ] **Quitar el bootstrap temporal de `index.html`** (botón "Crear cuenta de administrador") una vez exista al menos un admin funcional — ver nota en la sección Fase 1.
 - [ ] Revisar `"orientation": "portrait"` en el manifest de `mesero-app` ahora que también se instala en PC (los paneles ya usan `"any"`).
-- [x] **Mesas dinámicas + ocupación** — `/mesas` (nombre libre, activar/desactivar desde `panel-admin`), tomar/soltar mesa con escritura condicional en `mesero-app`, liberación al cobrar en `panel-caja`. Implementado inline en cada app, no como `shared/mesas.js` aparte (no hizo falta compartir código entre apps para esto).
+- [x] **Mesas dinámicas + ocupación** — `/mesas` (nombre libre, activar/desactivar desde `panel-admin`), elegida libremente por cualquier mesero en `mesero-app` (sin dueño ni reserva), ocupación calculada al vuelo desde `/pedidos` sin pagar. Implementado inline en cada app, no como `shared/mesas.js` aparte (no hizo falta compartir código entre apps para esto).
 - [ ] Resto de fases del plan: `shared/pedidos.js` (con estado por línea), `shared/qr.js`, `panel-cliente/`, cerrar las reglas abiertas de Firebase (Fase 9).
 - [ ] **Decisión pendiente sobre restablecer contraseña de otro trabajador** (sección 36): sin backend, la única forma hoy es manual desde la consola de Firebase.
 

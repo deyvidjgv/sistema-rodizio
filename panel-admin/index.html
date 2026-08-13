@@ -138,7 +138,7 @@
     </form>
     <div id="tablaMesasWrap" style="margin-top:18px">
       <table>
-        <thead><tr><th>Mesa</th><th>Estado</th><th>Atendida por</th><th></th></tr></thead>
+        <thead><tr><th>Mesa</th><th>Estado</th><th></th></tr></thead>
         <tbody id="tbodyMesas"></tbody>
       </table>
     </div>
@@ -263,29 +263,27 @@ async function crearTrabajador(e) {
   btn.disabled = false; btn.textContent = "Crear trabajador";
 }
 
-/* ── Mesas — nombre libre (no solo números), estado libre/ocupada
-   controlado por mesero-app al tomarlas y por panel-caja al cobrar
-   (ver /mesas en claude.md). Aquí solo se crean, renombran y
-   activan/desactivan — alcance a propósito reducido, igual que
-   trabajadores. ── */
+/* ── Mesas — nombre libre (no solo números). Solo guardan nombre +
+   activa; si está ocupada u libre NO se guarda acá — mesero-app lo
+   calcula al vuelo mirando si tiene algún pedido sin pagar (ver
+   claude.md). Aquí solo se crean, renombran y activan/desactivan —
+   alcance a propósito reducido, igual que trabajadores. ── */
 async function cargarMesas() {
   const tbody = $("tbodyMesas");
   let todas;
   try { todas = (await dbGet("/mesas")) || {}; }
-  catch (e) { tbody.innerHTML = `<tr><td colspan="4" class="empty-tabla">No se pudo cargar — revisa tu conexión y recarga.</td></tr>`; return; }
+  catch (e) { tbody.innerHTML = `<tr><td colspan="3" class="empty-tabla">No se pudo cargar — revisa tu conexión y recarga.</td></tr>`; return; }
   const filas = Object.entries(todas);
   if (!filas.length) {
-    tbody.innerHTML = `<tr><td colspan="4" class="empty-tabla">Todavía no hay mesas — agrega la primera arriba</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3" class="empty-tabla">Todavía no hay mesas — agrega la primera arriba</td></tr>`;
     return;
   }
   filas.sort((a, b) => (a[1].nombre || "").localeCompare(b[1].nombre || ""));
   tbody.innerHTML = filas.map(([id, m]) => {
     const inactiva = m.activa === false;
-    const ocupada = m.estado === "ocupada";
     return `<tr>
       <td>${escapeHtml(m.nombre || "—")}</td>
-      <td><span class="badge-estado ${ocupada ? "inactivo" : "activo"}">${inactiva ? "inactiva" : (ocupada ? "ocupada" : "libre")}</span></td>
-      <td>${escapeHtml(m.meseroNombre || "—")}</td>
+      <td><span class="badge-estado ${inactiva ? "inactivo" : "activo"}">${inactiva ? "inactiva" : "activa"}</span></td>
       <td>
         <button class="link-btn" data-editar-mesa="${id}" data-nombre="${escapeHtml(m.nombre || "")}">Renombrar</button>
         <button class="link-btn" data-toggle-mesa="${id}" data-activa="${inactiva ? "0" : "1"}">${inactiva ? "Activar" : "Desactivar"}</button>
@@ -307,7 +305,7 @@ async function crearMesa(e) {
   const btn = $("btnCrearMesa");
   btn.disabled = true; btn.textContent = "Agregando…";
   try {
-    await dbPush("/mesas", { nombre, activa: true, estado: "libre", meseroId: null, meseroNombre: null, pedidoActivoId: null });
+    await dbPush("/mesas", { nombre, activa: true });
     toast("Mesa agregada: " + nombre);
     $("formMesa").reset();
     await cargarMesas();

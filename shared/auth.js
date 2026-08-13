@@ -86,7 +86,7 @@ async function crearCuenta(usuario, password, nombre) {
 /**
  * Cambia la contraseña del usuario CON SESIÓN ACTIVA (el propio
  * trabajador cambiando su propia contraseña). NO sirve para que el
- * admin resetee la de otro — ver limitación documentada en claude.md:
+ * admin resetee la de otro — ver limitación documentada en CLAUDE.md:
  * sin backend/Admin SDK, esa parte de la sección 36 del plan original
  * requiere hacerlo manualmente desde la consola de Firebase por ahora.
  */

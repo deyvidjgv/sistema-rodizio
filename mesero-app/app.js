@@ -1090,9 +1090,13 @@
       /* ── Estado de la app ──
    mesaId es solo la mesa que ELEGISTE en esta pantalla ahora mismo —
    una selección local, sin dueño ni reserva. Cualquier mesero puede
-   elegir cualquier mesa (activa) en cualquier momento, esté o no
-   ocupada, para agregarle una comanda nueva. Ver claude.md, sección
-   "Mesas". ── */
+   elegir cualquier mesa en cualquier momento, esté o no ocupada, para
+   agregarle una comanda nueva.
+   Las mesas NO viven en Firebase: arrancan como Mesa 1..20 acá abajo,
+   se les puede agregar otra con nombre libre desde "+ Abrir otra", y
+   se reconstruyen solas para los demás meseros a partir de los pedidos
+   sin pagar que llegan por SSE (ver conectarPedidos). Ver CLAUDE.md,
+   sección "Mesas". ── */
       const defaultMesas = {};
       for (let i = 1; i <= 20; i++) {
         defaultMesas[`mesa-${i}`] = { nombre: `Mesa ${i}`, activa: true };

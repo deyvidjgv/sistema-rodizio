@@ -1,4 +1,35 @@
 {
+  // ⚠️  BORRADOR — NO APLICAR TODAVÍA. ESTAS REGLAS DEJAN LAS 4 APPS CAÍDAS.
+  //
+  // Este es el borrador de la "Fase 9" (cerrar el acceso público a la base).
+  // Se guarda aquí para no perder el trabajo, pero pegarlo en la consola de
+  // Firebase HOY tumba el sistema entero: todas las peticiones empiezan a
+  // responder "Permission denied", en las 4 apps a la vez.
+  //
+  // Falta esto antes de poder aplicarlas (ninguna está hecha todavía):
+  //
+  //   1. shared/firebase.js no manda credenciales. dbGet/dbSet/dbPush/
+  //      dbUpdate/dbDelete y escucharSSE() hablan con la REST API sin ningún
+  //      token, así que "auth != null" les da false a todas. Hay que adjuntar
+  //      el ID token de Firebase Auth como ?auth=<token> en la URL (no sirve
+  //      un header: EventSource no permite mandarlos).
+  //
+  //   2. El ID token vence cada hora. El stream SSE se corta cuando pasa, así
+  //      que hay que renovarlo y reconectar solo — si no, cocina y caja se
+  //      quedan congeladas a mitad de servicio sin que nadie se dé cuenta.
+  //
+  //   3. La regla de escritura de /trabajadores de abajo NUNCA se cumple:
+  //      usa hasChild('admin'), pero rolesPermitidos se guarda como array
+  //      (["admin"]) y RTDB guarda los arrays como {0: "admin"} — la clave es
+  //      "0", no "admin". Hay que pasar rolesPermitidos a mapa ({"admin":true})
+  //      en panel-admin y shared/roles.js, o reescribir la condición.
+  //
+  //   4. firebase.json no tiene sección "database", así que `firebase deploy`
+  //      ni siquiera sube este archivo — hoy solo se aplicaría pegándolo a
+  //      mano en la consola. Eso también falta conectarlo.
+  //
+  // Mientras tanto, las reglas activas en la consola siguen abiertas
+  // (.read/.write: true). Es una limitación conocida y aceptada — ver README.
   "rules": {
     ".read": false,
     ".write": false,
@@ -6,6 +37,8 @@
     "trabajadores": {
       ".read": "auth != null",
       "$uid": {
+        // Ojo: ver punto 3 de arriba — con rolesPermitidos como array, esta
+        // condición siempre da false y ningún admin puede escribir.
         ".write": "auth != null && root.child('trabajadores').child(auth.uid).child('rolesPermitidos').hasChild('admin')"
       }
     },

@@ -1,6 +1,6 @@
 // Rodizio — service worker: cachea el cascarón de la app so it opens instantly
 // and keeps working with no signal (e.g. inside the restaurant kitchen area).
-const CACHE = "rodizio-v9";
+const CACHE = "rodizio-v10";
 const SHELL = [
   "./",
   "./index.html",
@@ -8,10 +8,15 @@ const SHELL = [
   "./icon-192.png",
   "./icon-512.png",
   "./icon-512-maskable.png",
+  "./app.js",
+  "./styles.css",
   "../shared/theme.css",
+  "../shared/ui.css",
   "../shared/firebase.js",
   "../shared/util.js",
-  "../shared/roles.js"
+  "../shared/roles.js",
+  "../shared/ui.js",
+  "../shared/auth.js"
 ];
 
 self.addEventListener("install", (event) => {

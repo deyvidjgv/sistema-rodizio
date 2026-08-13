@@ -38,3 +38,13 @@ function crearBeep(frecuencias) {
     } catch (e) { }
   };
 }
+
+// Solución para Back-Forward Cache (bfcache):
+// Obliga a recargar la página si se restaura desde el historial del navegador.
+// Esto evita que las apps se queden "congeladas" en la pantalla de verificación
+// de sesión si el usuario navega hacia atrás/adelante.
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) {
+    window.location.reload();
+  }
+});

@@ -1,0 +1,90 @@
+/* shared/ui.css - Estilos compartidos de interfaz de usuario para todos los paneles */
+
+/* ── Toasts (Notificaciones) ── */
+@keyframes rzToast {
+  0% { opacity: 0; transform: translate(-50%, 10px); }
+  10%, 90% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 10px); }
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  background: var(--color-neutral-900);
+  color: var(--color-bg);
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 13px;
+  z-index: 9999;
+  box-shadow: var(--shadow-lg);
+  animation: rzToast 2.6s ease forwards;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── Botones principales (CTA) ── */
+.cta {
+  width: 100%;
+  min-height: 54px;
+  border: 0;
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-size: 17px;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.cta:active {
+  opacity: 0.8;
+}
+
+.cta:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Botón de instalación PWA ── */
+.btn-instalar-pwa {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-instalar-pwa:hover {
+  opacity: 0.9;
+}
+
+/* ── Empty States ── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--color-neutral-500);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state svg {
+  width: 48px;
+  height: 48px;
+  opacity: 0.5;
+  margin-bottom: 10px;
+}

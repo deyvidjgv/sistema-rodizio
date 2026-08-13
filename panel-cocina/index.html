@@ -17,75 +17,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Figtree:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../shared/theme.css">
-<style>
-  h1,h2,h3{font-family:var(--font-heading);font-weight:400;margin:0}
-  @keyframes rzPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.015)}}
-  @keyframes rzPop{0%{opacity:0;transform:translateY(-8px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
-  @keyframes rzRing{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--color-accent) 55%, transparent)}100%{box-shadow:0 0 0 14px transparent}}
-
-  header{position:sticky;top:0;z-index:20;background:color-mix(in srgb, var(--color-bg) 88%, transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--color-divider)}
-  .headwrap{max-width:1400px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-  .brand{display:flex;align-items:center;gap:10px;margin-right:auto}
-  .brand-badge{width:38px;height:38px;border-radius:12px;background:var(--color-accent);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);flex:none}
-  .brand-badge svg{width:20px;height:20px}
-  .brand h1{font-size:19px;line-height:1.1}
-  .brand small{display:block;font-size:11px;color:var(--color-neutral-600);letter-spacing:.03em;text-transform:uppercase;margin-top:2px}
-  .status{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--color-neutral-700);background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:999px;padding:7px 13px 7px 10px}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--color-accent-2-500);flex:none}
-  .dot.off{background:var(--color-neutral-500)}
-  .dot.live{animation:rzPulse 1.8s ease-in-out infinite}
-  .clock{font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;color:var(--color-neutral-800);background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:999px;padding:7px 14px}
-  .sound-btn{border:1px solid var(--color-divider);background:var(--color-neutral-100);border-radius:999px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-neutral-700)}
-  .sound-btn[data-on="0"]{color:var(--color-neutral-400)}
-  .sound-btn svg{width:18px;height:18px}
-
-  main{max-width:1400px;margin:0 auto;padding:18px 20px 24px}
-  .board{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
-  @media (max-width:980px){.board{grid-template-columns:1fr;gap:22px}}
-  .col{min-width:0}
-  .col-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:0 4px}
-  .col-head .swatch{width:11px;height:11px;border-radius:4px;flex:none}
-  .col-head h2{font-size:18px;flex:1}
-  .col-count{font-family:var(--font-body);font-weight:800;font-size:14px;background:var(--color-neutral-200);color:var(--color-neutral-800);border-radius:999px;min-width:28px;height:24px;padding:0 8px;display:flex;align-items:center;justify-content:center}
-  .cards{display:flex;flex-direction:column;gap:12px;min-height:70px}
-
-  .ticket{background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:18px 19px;box-shadow:var(--shadow-sm);animation:rzPop .28s ease both}
-  .ticket.enviado{border-color:var(--color-accent-300)}
-  .ticket.listo{border-color:var(--color-accent-2-500);background:var(--color-accent-2-100)}
-  .ticket.nueva{animation:rzPop .28s ease both, rzRing 1.1s ease-out 1}
-  .t-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
-  .t-codigo{font-family:var(--font-heading);font-size:24px;line-height:1}
-  .t-mesa{display:inline-block;margin-top:6px;font-size:13px;font-weight:700;color:var(--color-bg);background:var(--color-neutral-800);border-radius:999px;padding:4px 11px}
-  .t-time{font-size:12.5px;font-weight:700;color:var(--color-neutral-600);white-space:nowrap;text-align:right}
-  .t-time.warn{color:var(--color-accent-700)}
-  .t-mesero{font-size:12.5px;color:var(--color-neutral-600);margin:2px 0 11px}
-  .t-lineas{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
-  .t-linea{display:flex;gap:9px;font-size:15px;line-height:1.35}
-  .t-qty{font-weight:800;color:var(--color-accent-700);min-width:26px}
-  .t-nombre{flex:1}
-  .t-nota{display:block;font-size:12.5px;color:var(--color-accent-700);background:var(--color-accent-100);border-radius:8px;padding:4px 9px;margin-top:4px;width:fit-content}
-  .t-foot{display:flex;align-items:center;gap:10px;padding-top:11px;border-top:1px dashed var(--color-divider)}
-  .t-action{margin-left:auto;border:0;border-radius:999px;padding:12px 20px;font-size:14.5px;font-weight:700;cursor:pointer;color:var(--color-bg)}
-  .t-action.a-prep{background:var(--color-accent)}
-  .t-action.a-listo{background:var(--color-accent-2-600)}
-  .t-badge-listo{margin-left:auto;font-size:13px;font-weight:800;color:var(--color-accent-2-700);display:flex;align-items:center;gap:6px}
-  .t-badge-listo .b{width:8px;height:8px;border-radius:50%;background:var(--color-accent-2-600);animation:rzPulse 1.4s ease-in-out infinite}
-
-  .empty{border:1.5px dashed var(--color-divider);border-radius:var(--radius-lg);padding:26px 16px;text-align:center;color:var(--color-neutral-500);font-size:13.5px}
-
-  /* ————— Franja de recién entregados: solo confirmación visual, sin reportes ————— */
-  .entregados-strip{max-width:1400px;margin:24px auto 0;padding:0 20px}
-  .entregados-strip h3{font-size:13px;font-weight:700;color:var(--color-neutral-600);text-transform:uppercase;letter-spacing:.04em;margin-bottom:9px;padding:0 4px}
-  .entregados-chips{display:flex;gap:8px;flex-wrap:wrap}
-  .entregado-chip{display:flex;align-items:center;gap:7px;background:var(--color-neutral-200);color:var(--color-neutral-600);border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:600}
-  .entregado-chip .ok{color:var(--color-accent-2-600)}
-
-  .banner{max-width:1400px;margin:0 auto 14px;padding:11px 16px;border-radius:16px;background:var(--color-accent-100);border:1px solid var(--color-accent-300);color:var(--color-accent-700);font-size:12.5px;display:none;align-items:center;gap:8px}
-  .banner.show{display:flex}
-
-  .cargando{text-align:center;color:var(--color-neutral-600);padding:60px 20px}
-  .logout{border:1px solid var(--color-divider);background:var(--color-neutral-100);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:600;color:var(--color-neutral-700);cursor:pointer}
-</style>
+<link rel="stylesheet" href="../shared/ui.css">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -108,6 +41,7 @@
     <button class="sound-btn" id="soundBtn" data-on="1" title="Silenciar aviso de nuevo pedido">
       <svg id="soundIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
     </button>
+    <button class="btn-instalar-pwa" id="btnInstalarApp">📲 Instalar App</button>
     <button class="logout" id="btnLogout">Salir</button>
   </div>
 </header>
@@ -139,180 +73,9 @@
 
 <script src="../shared/firebase.js"></script>
 <script src="../shared/util.js"></script>
+<script src="../shared/ui.js"></script>
 <script src="../shared/roles.js"></script>
 <script type="module" src="../shared/auth.js"></script>
-<script>
-/* ─────────────────────────────────────────────────────────────
-   Rodizio · Panel de cocina — vanilla JS, sin build, un solo archivo.
-   Igual que el panel de caja, se conecta directo a Firebase Realtime
-   Database por REST + SSE (sin SDK ni apiKey), así que ambos paneles
-   ven exactamente los mismos pedidos y se actualizan solos en cuanto
-   uno de los dos —o el mesero desde su celular— cambia un estado.
-   Este panel se queda solo con lo esencial para cocinar: el tablero
-   y la franja de confirmación de entregados, sin reportes ni estadísticas.
-   Sesión: guard de Firebase Authentication + rol "cocinero" (o "admin",
-   que pasa el guard de cualquier panel) — ver shared/auth.js y
-   shared/roles.js. El login ocurre en el login raíz
-   (/index.html); este panel solo verifica y, si falla, redirige ahí.
-   ───────────────────────────────────────────────────────────── */
-// DB_URL / dbUrl / dbUpdate / escucharSSE / aplicarEventoSSE / escapeHtml /
-// fmtCop / crearBeep vienen de ../shared/firebase.js y ../shared/util.js
-
-let pedidos = {};
-let vistos = new Set();
-let primeraCarga = true;
-let sonidoOn = true;
-const beep = crearBeep([880, 1180]);
-
-function minsDesde(ts){ return Math.max(0, Math.round((Date.now() - ts) / 60000)); }
-
-function conectar() {
-  const es = escucharSSE("/pedidos", (tipo, evento) => {
-    pedidos = aplicarEventoSSE(pedidos, tipo, evento);
-    setStatus(true);
-    render();
-  });
-  es.onopen = () => setStatus(true);
-  es.onerror = () => { setStatus(false); };
-  return es;
-}
-
-function setStatus(ok) {
-  document.getElementById("dot").className = "dot " + (ok ? "live" : "off");
-  document.getElementById("statusTxt").textContent = ok ? "En vivo" : "Conectando…";
-  document.getElementById("banner").classList.toggle("show", !ok);
-}
-
-document.getElementById("soundBtn").addEventListener("click", () => {
-  sonidoOn = !sonidoOn;
-  const btn = document.getElementById("soundBtn");
-  btn.dataset.on = sonidoOn ? "1" : "0";
-  document.getElementById("soundIcon").innerHTML = sonidoOn
-    ? '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>'
-    : '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/>';
-});
-
-function marcar(id, estado) {
-  dbUpdate(`/pedidos/${id}`, { estado, tsCambio: Date.now() });
-}
-
-function linea(l) {
-  return `<div class="t-linea">
-    <span class="t-qty">${l.qty}×</span>
-    <span class="t-nombre">${escapeHtml(l.nombre)}${l.nota ? `<span class="t-nota">${escapeHtml(l.nota)}</span>` : ""}</span>
-  </div>`;
-}
-
-function ticket(id, p, accion) {
-  const min = minsDesde(p.ts);
-  const nueva = !vistos.has(id) && !primeraCarga && p.estado === "enviado";
-  const lineasHtml = (p.lineas || []).map(linea).join("");
-  let foot = "";
-  if (accion === "prep") foot = `<button class="t-action a-prep" onclick="marcar('${id}','preparacion')">Empezar</button>`;
-  else if (accion === "listo") foot = `<button class="t-action a-listo" onclick="marcar('${id}','listo')">Marcar listo</button>`;
-  else if (accion === "espera") foot = `<span class="t-badge-listo"><span class="b"></span>Esperando mesero</span>`;
-
-  return `<div class="ticket ${p.estado}${nueva ? " nueva" : ""}" data-id="${id}">
-    <div class="t-top">
-      <div><div class="t-codigo">${escapeHtml(p.codigo || id)}</div><span class="t-mesa">Mesa ${escapeHtml(String(p.mesa ?? "—"))}</span></div>
-      <div class="t-time ${min >= 15 ? "warn" : ""}">hace ${min} min</div>
-    </div>
-    <div class="t-mesero">${escapeHtml(p.mesero || "Mesero")}</div>
-    <div class="t-lineas">${lineasHtml}</div>
-    <div class="t-foot">${foot}</div>
-  </div>`;
-}
-
-function render() {
-  const entries = Object.entries(pedidos).filter(([, p]) => p && p.estado);
-  entries.sort((a, b) => (a[1].ts || 0) - (b[1].ts || 0));
-
-  const enviados = entries.filter(([, p]) => p.estado === "enviado");
-  const prep = entries.filter(([, p]) => p.estado === "preparacion");
-  const listos = entries.filter(([, p]) => p.estado === "listo");
-  const entregados = entries.filter(([, p]) => p.estado === "entregado");
-
-  fill("colEnviado", "cEnviado", enviados, "prep");
-  fill("colPrep", "cPrep", prep, "listo");
-  fill("colListo", "cListo", listos, "espera");
-  fillEntregados(entregados);
-
-  const nuevosSinVer = enviados.some(([id]) => !vistos.has(id));
-  if (nuevosSinVer && !primeraCarga && sonidoOn) beep();
-
-  entries.forEach(([id]) => vistos.add(id));
-  primeraCarga = false;
-}
-
-function fill(colId, countId, list, accion) {
-  const col = document.getElementById(colId);
-  document.getElementById(countId).textContent = list.length;
-  col.innerHTML = list.length
-    ? list.map(([id, p]) => ticket(id, p, accion)).join("")
-    : `<div class="empty">Sin comandas aquí por ahora</div>`;
-}
-
-// Solo una franja de confirmación — los últimos 8 pedidos entregados,
-// sin historial completo ni reportes (eso vive en el panel de caja).
-function fillEntregados(entregados) {
-  const ultimos = entregados
-    .sort((a, b) => (b[1].tsCambio || b[1].ts || 0) - (a[1].tsCambio || a[1].ts || 0))
-    .slice(0, 8);
-  const cont = document.getElementById("entregadosChips");
-  cont.innerHTML = ultimos.length
-    ? ultimos.map(([id, p]) => `<span class="entregado-chip"><span class="ok">✓</span>${escapeHtml(p.codigo || id)} · Mesa ${escapeHtml(String(p.mesa ?? "—"))}</span>`).join("")
-    : `<span class="entregado-chip">Todavía no se ha entregado ningún pedido</span>`;
-}
-
-function tickClock() {
-  const d = new Date();
-  document.getElementById("clock").textContent = d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
-}
-setInterval(() => { tickClock(); render(); }, 20000);
-
-/* ── Guard de sesión ── */
-function esperarAuthListo() {
-  return new Promise((resolve) => {
-    (function chequear() {
-      if (window.onAuthStateChanged && window.logout) resolve();
-      else setTimeout(chequear, 30);
-    })();
-  });
-}
-
-async function iniciar() {
-  await esperarAuthListo();
-  onAuthStateChanged(async (user) => {
-    if (!user) { window.location.href = "../index.html"; return; }
-    let perfil;
-    try { perfil = await getWorkerProfile(user.uid); }
-    catch (e) { window.location.href = "../index.html"; return; }
-    if (!perfil || perfil.estado !== "activo" || (!hasRole(perfil, "cocinero") && !hasRole(perfil, "admin"))) {
-      await logout();
-      window.location.href = "../index.html";
-      return;
-    }
-    document.getElementById("vistaCargando").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    tickClock();
-    conectar();
-  });
-}
-
-document.getElementById("btnLogout").addEventListener("click", async () => {
-  await logout();
-  window.location.href = "../index.html";
-});
-
-iniciar();
-</script>
-
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('sw.js').catch(function () {});
-  });
-}
-</script>
+<script src="app.js"></script>
 </body>
 </html>

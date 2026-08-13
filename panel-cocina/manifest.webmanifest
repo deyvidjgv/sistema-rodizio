@@ -2,7 +2,7 @@
   "name": "Rodizio – Cocina",
   "short_name": "Rodizio Cocina",
   "description": "Panel de cocina en tiempo real — Rodizio, Cúcuta",
-  "id": "/",
+  "id": "/panel-cocina/",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

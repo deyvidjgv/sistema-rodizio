@@ -2,7 +2,7 @@
   "name": "Rodizio – Meseros",
   "short_name": "Rodizio",
   "description": "Toma de pedidos para meseros — Rodizio, Cúcuta",
-  "id": "/",
+  "id": "/mesero-app/",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

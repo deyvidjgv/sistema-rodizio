@@ -6,7 +6,7 @@ Sistema web liviano (PWA) de tiempo real para la gestión de comandas en restaur
 
 ## 🚀 Despliegue en Firebase Hosting
 
-Ya se encuentra configurado (`firebase.json` + `.firebaserc`, sitio `rodizio` apuntando al proyecto Firebase):
+Ya se encuentra configurado (`firebase.json`, sitio `rodizio` apuntando al proyecto Firebase). El repo no versiona `.firebaserc`, así que la primera vez en una máquina nueva hay que correr `firebase use --add` y seleccionar el proyecto `rodizio-eb49a`:
 
 ```bash
 npm install -g firebase-tools   # Instalación única de CLI

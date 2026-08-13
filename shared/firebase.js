@@ -1,18 +1,22 @@
 /* Rodizio — shared/firebase.js
    Responsable ÚNICAMENTE de la comunicación con Firebase Realtime
    Database: REST (dbGet/dbSet/dbPush/dbUpdate/dbDelete) y tiempo real
-   (SSE). NO contiene lógica de login — eso vive en shared/auth.js
-   (Fase 1, pendiente de la configuración de Firebase Authentication).
+   (SSE). NO contiene lógica de login — eso vive en shared/auth.js.
    Sin SDK de Firebase: se habla directo con la REST API pública de
    RTDB y con EventSource, que Firebase soporta de fábrica para
-   streaming (Accept: text/event-stream). */
+   streaming (Accept: text/event-stream).
+
+   OJO: estas peticiones NO llevan credenciales (ningún ?auth=<token>),
+   así que solo funcionan mientras las reglas de RTDB estén abiertas.
+   Adjuntar el token es el paso 1 de la Fase 9 — ver database.rules.json,
+   que lista todo lo que falta antes de poder cerrar las reglas. */
 
 const DB_URL = "https://rodizio-eb49a-default-rtdb.firebaseio.com";
 const dbUrl = (path) => `${DB_URL}${path}.json`;
 
 // Si Firebase deniega la petición (reglas), REST responde 4xx con un
 // cuerpo tipo {"error":"Permission denied"} — sigue siendo JSON válido,
-// así que sin este chequeo se confundía con un dato real (ver claude.md,
+// así que sin este chequeo se confundía con un dato real (ver CLAUDE.md,
 // "Para futuras sesiones"). Todas las funciones de abajo revisan r.ok
 // y lanzan un error de verdad en vez de devolver el error como si fuera dato.
 async function lanzarSiFalla(r, op, path) {
@@ -83,7 +87,7 @@ function aplicarEventoSSE(arbol, tipo, evento) {
 // ───────── Correlativo diario de pedidos (P-001, P-002, …) ─────────
 // Escritura condicional con ETag para que dos comandas enviadas al
 // mismo tiempo no choquen de número (aproximación a una transacción
-// atómica sin backend propio — ver limitaciones en claude.md).
+// atómica sin backend propio — ver limitaciones en CLAUDE.md).
 async function siguienteCodigo() {
   const hoy = new Date().toISOString().slice(0, 10);
   const path = `/contadores/${hoy}`;

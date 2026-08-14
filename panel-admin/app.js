@@ -237,6 +237,78 @@ async function eliminarTrabajador(uid) {
   }
 }
 
+/* ── Códigos QR de mesas ──
+   100% estático: solo codifica la URL de panel-cliente para esa mesa,
+   no escribe nada en Firebase. La librería QRCode se carga con "defer"
+   desde el CDN (mismo patrón que ExcelJS en panel-caja), así que puede
+   no estar lista todavía cuando este script arranca. ── */
+function esperarQrListo() {
+  return new Promise((resolve) => {
+    (function chequear() {
+      if (window.QRCode) resolve();
+      else setTimeout(chequear, 30);
+    })();
+  });
+}
+
+function slugMesa(nombre) {
+  return nombre.trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+function urlQrMesa(mesaId, nombre) {
+  const url = new URL("../panel-cliente/", window.location.href);
+  url.searchParams.set("mesa", mesaId);
+  url.searchParams.set("nombre", nombre);
+  return url.toString();
+}
+
+function agregarQr(mesaId, nombre) {
+  // Evita apilar canvases duplicados si se hace doble clic o clics rápidos
+  // seguidos en "Generar" para la misma mesa especial — reusa el que ya
+  // está en el grid en vez de crear uno nuevo al lado.
+  const existente = $("qrGrid").querySelector(`[data-mesa-id="${CSS.escape(mesaId)}"]`);
+  if (existente) {
+    existente.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  const item = document.createElement("div");
+  item.className = "qr-item";
+  item.dataset.mesaId = mesaId;
+  const canvas = document.createElement("canvas");
+  const label = document.createElement("b");
+  label.textContent = nombre;
+  const btnDescargar = document.createElement("button");
+  btnDescargar.type = "button";
+  btnDescargar.textContent = "Descargar";
+  item.append(canvas, label, btnDescargar);
+  $("qrGrid").appendChild(item);
+
+  QRCode.toCanvas(canvas, urlQrMesa(mesaId, nombre), { width: 160, margin: 1 }, (err) => {
+    if (err) { label.textContent = nombre + " — error al generar"; return; }
+    btnDescargar.onclick = () => {
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `qr-${mesaId}.png`;
+      a.click();
+    };
+  });
+}
+
+let qrGridGenerado = false;
+
+// Generar los 20 QR de entrada renderiza 20 canvases — de una se nota en el
+// espacio de la pantalla. Se posterga hasta que el admin abra el <details>,
+// y solo se hace una vez (no se regenera cada vez que se vuelve a abrir).
+async function renderQrGrid() {
+  if (qrGridGenerado) return;
+  qrGridGenerado = true;
+  await esperarQrListo();
+  $("qrGrid").innerHTML = "";
+  for (let i = 1; i <= 20; i++) agregarQr(`mesa-${i}`, `Mesa ${i}`);
+}
+
 async function iniciar() {
   await esperarAuthListo();
 
@@ -274,6 +346,16 @@ async function iniciar() {
   $("btnLogout").addEventListener("click", async () => {
     await logout();
     window.location.href = "../index.html";
+  });
+  $("qrDetails").addEventListener("toggle", (e) => {
+    if (e.target.open) renderQrGrid();
+  });
+  $("btnGenerarQrCustom").addEventListener("click", () => {
+    const input = $("fMesaCustom");
+    const nombre = input.value.trim();
+    if (!nombre) return;
+    agregarQr("custom-" + slugMesa(nombre), nombre);
+    input.value = "";
   });
 }
 

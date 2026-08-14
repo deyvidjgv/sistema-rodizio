@@ -8,1061 +8,7 @@
    redirige de vuelta ahí.
    ═══════════════════════════════════════════════════════════════ */
 
-      /* ── Menú completo de Rodizio Cúcuta ── */
-      const MENU = [
-        {
-          cat: 'Entradas',
-          items: [
-            {
-              id: 'en1',
-              nombre: 'Crema de Pollo ó Champiñones',
-              desc: 'Suave crema elaborada en bechamel, a base de pechuga de pollo o champiñones.',
-              precio: 24000,
-            },
-            {
-              id: 'en2',
-              nombre: 'Sopa del Día',
-              desc: 'Exquisita sopa especial de la casa a base de plátano, verduras y trocitos de carne seleccionadas.',
-              precio: 20000,
-            },
-            {
-              id: 'en3',
-              nombre: 'Coctel de Camarón',
-              desc: '200 grs de camarones bañados en salsa golf o en salsa roja.',
-              precio: 35000,
-            },
-            {
-              id: 'en4',
-              nombre: 'Tuna a la Tártara',
-              desc: 'Ensalada de la casa a base de atún, salsa tártara Rodizio, aguacate y tomate cherry, coronado con un crocante tostón.',
-              precio: 25000,
-            },
-            {
-              id: 'en5',
-              nombre: 'Ensalada al César',
-              desc: 'Clásica mezcla de lechuga, crutones, tocineta y queso parmesano con aderezo césar.',
-              precio: 20000,
-            },
-          ],
-        },
-        {
-          cat: 'Para Compartir',
-          items: [
-            {
-              id: 'pc1',
-              nombre: 'Rodizio Casero',
-              desc: '1000 gramos de proteína: punta de anca, chata, morrillo, chunchulla, lomito de cerdo, chorizo, morcilla y ubre, acompañado…',
-              precio: 149900,
-            },
-            {
-              id: 'pc2',
-              nombre: 'Tostones de la Casa',
-              desc: 'Crujientes y tostaditos platanitos acompañados de nuestra inigualable salsa tártara Rodizio.',
-              precio: 10000,
-            },
-            {
-              id: 'pc3',
-              nombre: 'Porción de Morcillas',
-              desc: 'Cuatro (4) inigualables y únicas morcillitas acompañadas de papa salada y yuca al vapor.',
-              precio: 15000,
-            },
-            {
-              id: 'pc4',
-              nombre: 'Porción de Chorizo',
-              desc: 'Dos chorizos importados al mejor estilo uruguayo acompañados de papa salada.',
-              precio: 18000,
-            },
-            {
-              id: 'pc5',
-              nombre: 'Porción de Chicharrón',
-              desc: '300 grs de chicharrón de cerdo acompañado de yuca al vapor y limoncito.',
-              precio: 32000,
-            },
-            {
-              id: 'pc6',
-              nombre: 'Porción de Chunchulla ó Ubre',
-              desc: '250 grs asadas a la parrilla acompañadas de papa salada o yuca al vapor. Recomendadísimo.',
-              precio: 32000,
-            },
-            {
-              id: 'pc7',
-              nombre: 'Alitas Picantes',
-              desc: '(12) Al mejor estilo americano, acompañadas de salsa miel-mostaza ó BBQ, ligeramente picantes.',
-              precio: 32000,
-            },
-          ],
-        },
-        {
-          cat: 'De la Parrilla',
-          items: [
-            {
-              id: 'pa1',
-              nombre: 'Rodizio a la Mesa',
-              desc: 'Buffet de 10 diferentes cortes de carnes entre res, pollo, cerdo y vísceras, servido a la mesa sin límite de consumo. Acompa…',
-              precio: 99900,
-            },
-            {
-              id: 'pa2',
-              nombre: 'Colita de Cuadril',
-              desc: 'Corte selecto del chef, 400 grs de textura muy suave y mucho sabor, ubicado en la parte baja del sirloin.',
-              precio: 80000,
-            },
-            {
-              id: 'pa3',
-              nombre: 'Plato Mixto',
-              desc: 'Tradicional plato de la parrilla: churrasco, pollo, chinchulla, ubre y/o cerdo, con papa salada o a la francesa.',
-              precio: 68000,
-            },
-            {
-              id: 'pa4',
-              nombre: 'Baby Beef',
-              desc: 'Tierno corte de lomo fino sin grasa, asado a la parrilla.',
-              precio: 70000,
-            },
-            {
-              id: 'pa5',
-              nombre: 'Punta de Anca',
-              desc: 'Corte ubicado en el cuarto trasero de la res en su punto óptimo de maduración.',
-              precio: 62000,
-            },
-            {
-              id: 'pa6',
-              nombre: 'Picada Especial',
-              desc: '(Para tres personas) Churrasco, pechuga, lomo de cerdo, morcilla, chorizo, tostones, arepitas, papas a la francesa y en…',
-              precio: 119000,
-            },
-            {
-              id: 'pa7',
-              nombre: 'Bife Chorizo',
-              desc: 'Corte argentino del centro de la chata de res a la parrilla. Término sugerido 1/2 ó 3/4.',
-              precio: 58000,
-            },
-            {
-              id: 'pa8',
-              nombre: 'Costillitas de Cerdo',
-              desc: 'Seleccionadas costillas de cerdo a la parrilla, acompañadas de papas a la francesa. Elija entre BBQ y ahumada.',
-              precio: 55000,
-            },
-            {
-              id: 'pa9',
-              nombre: 'Churrasco',
-              desc: 'Jugoso centro de chata de res en corte mariposa con punto óptimo de maduración y exquisito sabor.',
-              precio: 52000,
-            },
-            {
-              id: 'pa10',
-              nombre: 'Churrasco de Cerdo',
-              desc: 'Jugoso centro de chata de cerdo en corte mariposa con punto óptimo de maduración y exquisito sabor.',
-              precio: 46000,
-            },
-            {
-              id: 'pa11',
-              nombre: 'Pollo al Rodizio',
-              desc: 'Deliciosas presas de pollo asadas (4) a la brasa.',
-              precio: 38000,
-            },
-          ],
-        },
-        {
-          cat: 'Angus Beef',
-          items: [
-            {
-              id: 'ab1',
-              nombre: 'New York Steak',
-              desc: '350 grs de la más exquisita carne Angus Beef, tierna y ligeramente marmoleada, preparada a la brasa. Corte prove…',
-              precio: 130000,
-            },
-            {
-              id: 'ab2',
-              nombre: 'Asado de Tira',
-              desc: 'Se caracteriza por ser uno de los cortes de mayor marmoleo. 350 grs de la mejor carne del mundo Certified Angus Beef…',
-              precio: 120000,
-            },
-            {
-              id: 'ab3',
-              nombre: 'Picanha',
-              desc: 'Jugosa y tierna carne de novillo Certified Angus Beef servida en espada, cocinada a fuego lento, acompañada de feijoad…',
-              precio: 315000,
-            },
-            {
-              id: 'ab4',
-              nombre: 'Tomahawk Steak',
-              desc: 'Corte fino de res Certified Angus Beef, una de las piezas más solicitadas en la mesa del mundo. Se trata de un corte…',
-              precio: 132000,
-            },
-            {
-              id: 'ab5',
-              nombre: 'Pincho Ipanema',
-              desc: '280 grs de Picanha Certified Angus Beef acompañado de papas a la francesa, una arepita y una yuquita frita.',
-              precio: 52000,
-            },
-            {
-              id: 'ab6',
-              nombre: 'Sirloin Steak',
-              desc: '200 grs de lomo ancho de res importado, Angus Beef Certified.',
-              precio: 60000,
-            },
-            {
-              id: 'ab7',
-              nombre: 'Espada Mundialista 2026',
-              desc: '900 gramos de 3 cortes importados de 300 grs cada uno: sirloin, colita de cuadril y punta de anca de cerdo, acompañado…',
-              precio: 269000,
-            },
-          ],
-        },
-        {
-          cat: 'Burger Angus',
-          items: [
-            {
-              id: 'ba1',
-              nombre: 'La Gardel',
-              desc: '200 grs de carne Certified Angus Beef a la parrilla, chorizo argentino y corte mariposa, bañado en auténtico chimichurri…',
-              precio: 46000,
-            },
-            {
-              id: 'ba2',
-              nombre: 'La Mayamera',
-              desc: '200 grs de carne Certified Angus Beef a la parrilla, 100 grs de queso asado, papitas fosforito, tocineta bañada en salsa BB…',
-              precio: 46000,
-            },
-            {
-              id: 'ba3',
-              nombre: 'Donald Trump',
-              desc: '200 grs de carne Certified Angus Beef a la parrilla, aritos de cebolla, queso cheddar, tocineta bañada en salsa BBQ, vege…',
-              precio: 44000,
-            },
-            {
-              id: 'ba4',
-              nombre: 'De la Casa',
-              desc: '200 grs de carne Certified Angus Beef a la parrilla, para los amantes de lo clásico: queso cheddar, tocineta, vegetales fre…',
-              precio: 44000,
-            },
-          ],
-        },
-        {
-          cat: 'De la Casa',
-          items: [
-            {
-              id: 'dc1',
-              nombre: 'Tri-mignon',
-              desc: 'Combinación de (3) mignon de res, mignon de pollo y mignon de cerdo, bañados en tres diferentes salsas sobre una cama de puré de papa.',
-              precio: 65000,
-            },
-            {
-              id: 'dc2',
-              nombre: 'Filet Mignon',
-              desc: 'Clásico de la casa, medallones de lomo de res envueltos en tocineta bañados en nuestra inigualable salsa demiglace…',
-              precio: 66000,
-            },
-            {
-              id: 'dc3',
-              nombre: 'Pollo a la Cremé',
-              desc: 'Jugosa pechuga de pollo a la plancha bañada en salsa blanca con camarones ó champiñones.',
-              precio: 53000,
-            },
-            {
-              id: 'dc4',
-              nombre: 'Carne y Pasta',
-              desc: 'Fetuccini o espagueti en salsa a elegir: 4 quesos, carbonara o napolitana. Elija entre churrasco, punta o baby beef.',
-              precio: 53000,
-            },
-            {
-              id: 'dc5',
-              nombre: 'Lomito al Strogonoff',
-              desc: '(250 grs) Exquisito lomito fino cortado en tiras, bañado en salsa de vino y champiñones.',
-              precio: 48000,
-            },
-            {
-              id: 'dc6',
-              nombre: 'Milanesa Napolitana',
-              desc: 'Lomo fino de res apanado con jamón, queso y bañado en salsa napolitana al gratín.',
-              precio: 50000,
-            },
-            {
-              id: 'dc7',
-              nombre: 'Pollo a la Diabla',
-              desc: 'Deliciosa pechuga bañada en salsa rubia con un toque de pimienta y mostaza, acompañada de papas a la francesa.',
-              precio: 49000,
-            },
-          ],
-        },
-        {
-          cat: 'Del Mar',
-          items: [
-            {
-              id: 'dm1',
-              nombre: 'Mixto de Mariscos',
-              desc: 'Inigualable combinación de frutos del mar a la parrilla: mejillones, palmitos del mar, pota, calamar, pulpo, langostinos…',
-              precio: 108000,
-            },
-            {
-              id: 'dm2',
-              nombre: 'Langostinos',
-              desc: '(6) Seleccionados langostinos directo del mar a la mesa. Elija entre Thermidor, al ajillo, al gratín o apanado de coco…',
-              precio: 98000,
-            },
-            {
-              id: 'dm3',
-              nombre: 'Salmón Marinera',
-              desc: 'Filete de salmón a la plancha bañado en salsa de frutos del mar (calamar, pulpo, caracol, almeja y mejillón).',
-              precio: 95000,
-            },
-            {
-              id: 'dm4',
-              nombre: 'Róbalo Marinera',
-              desc: 'Filete de róbalo a la plancha bañado en salsa de frutos del mar (calamar, pulpo, caracol, almeja y mejillón).',
-              precio: 75000,
-            },
-            {
-              id: 'dm5',
-              nombre: 'Salmón Fusión',
-              desc: 'Filete de salmón a la parrilla bañado en salsa de lulo y soya, acompañado de arroz oriental.',
-              precio: 75000,
-            },
-            {
-              id: 'dm6',
-              nombre: 'Cazuela de Mariscos',
-              desc: 'Plato típico de las costas colombianas al gratín con pulpo, calamar, almeja, caracol, camarón y langostinos.',
-              precio: 71000,
-            },
-            {
-              id: 'dm7',
-              nombre: 'Paella Española',
-              desc: '(Para dos personas) Plato típico de la gastronomía española a base de arroz, vegetales, carnes y mariscos cocinados…',
-              precio: 120000,
-            },
-            {
-              id: 'dm8',
-              nombre: 'Salmón de la Casa',
-              desc: 'Generosa porción de filete de salmón a la plancha acompañado de arroz negro en tinta de calamar.',
-              precio: 75000,
-            },
-            {
-              id: 'dm9',
-              nombre: 'Róbalo Buena Mujer',
-              desc: 'Filete de róbalo en salsa de champiñones y camarones gratinado, servido en una cama de puré de papa.',
-              precio: 71000,
-            },
-            {
-              id: 'dm10',
-              nombre: 'Róbalo a la Cremé',
-              desc: 'Filete de róbalo con camarón y/o champiñón bañado en una deliciosa salsa rubia al gratín.',
-              precio: 71000,
-            },
-          ],
-        },
-        {
-          cat: 'Menú Infantil',
-          items: [
-            {
-              id: 'mi1',
-              nombre: 'Mini - Hamburguesa',
-              desc: 'Acompañado de papas a la francesa, un juguito y un juguete y sorpresa.',
-              precio: 28000,
-            },
-            {
-              id: 'mi2',
-              nombre: 'Pechuguita Apanada',
-              desc: 'Acompañado de papas a la francesa, un juguito y un juguete y sorpresa.',
-              precio: 28000,
-            },
-            {
-              id: 'mi3',
-              nombre: 'Nuggets de Pollo',
-              desc: 'Acompañado de papas a la francesa, un juguito y un juguete y sorpresa.',
-              precio: 28000,
-            },
-            {
-              id: 'mi4',
-              nombre: 'Mini - Perro',
-              desc: 'Acompañado de papas a la francesa, un juguito y un juguete y sorpresa.',
-              precio: 28000,
-            },
-          ],
-        },
-        {
-          cat: 'Postres',
-          items: [
-            {
-              id: 'po1',
-              nombre: 'Mousse de Maracuyá',
-              desc: 'Típico de la gastronomía brasileña, súper refrescante.',
-              precio: 15000,
-            },
-            {
-              id: 'po2',
-              nombre: 'Brownie con Helado',
-              desc: 'Brownie de chocolate caliente cubierto de una bolita de helado de vainilla bañado en salsa de caramelo.',
-              precio: 12000,
-            },
-            {
-              id: 'po3',
-              nombre: 'Quesillo',
-              desc: 'Delicioso y suave quesillo de leche bañado en salsa de caramelo.',
-              precio: 12000,
-            },
-            {
-              id: 'po4',
-              nombre: 'Brevas con Arequipe',
-              desc: 'Típico postre bogotano que se prepara con brevas cocidas en azúcar o caramelo, cubiertas con arequipe.',
-              precio: 12000,
-            },
-            {
-              id: 'po5',
-              nombre: 'Arequipe Flambeado',
-              desc: 'Arequipe gratinado con queso mozzarella y parmesano, flambeado con coñac.',
-              precio: 12000,
-            },
-            {
-              id: 'po6',
-              nombre: 'Copa de Helado',
-              desc: 'Helado de vainilla bañado con salsa de chocolate.',
-              precio: 15000,
-            },
-          ],
-        },
-        {
-          cat: 'Bebidas',
-          items: [
-            { id: 'be1', nombre: 'Limonada Cerezada', desc: '', precio: 15000 },
-            { id: 'be2', nombre: 'Limonada de Coco', desc: '', precio: 15000 },
-            {
-              id: 'be3',
-              nombre: 'Jugos Naturales',
-              desc: 'Sabor de su preferencia.',
-              precio: 11000,
-            },
-            {
-              id: 'be4',
-              nombre: 'Frappes',
-              desc: 'Sabor de su preferencia.',
-              precio: 11000,
-            },
-            {
-              id: 'be5',
-              nombre: 'Coca-Cola Pet 400 ml',
-              desc: 'Mezcla de azúcar y aceites de naranja, limón y vainilla.',
-              precio: 7000,
-            },
-            {
-              id: 'be6',
-              nombre: 'Coca-Cola Zero Pet 400 ml',
-              desc: 'Zero es una de las variantes no calóricas de Coca-Cola.',
-              precio: 7000,
-            },
-            {
-              id: 'be7',
-              nombre: 'Manzana Postobón 400 ml',
-              desc: 'Bebida gaseosa ideal para refrescar y quitar la sed, aspecto líquido color rosado, refrescante.',
-              precio: 6000,
-            },
-            {
-              id: 'be8',
-              nombre: 'Uva Postobón 400 ml',
-              desc: 'Con un dulce sabor a uva, refrescante, colorida y la favorita para los colombianos.',
-              precio: 6000,
-            },
-            {
-              id: 'be9',
-              nombre: '7up 400 ml',
-              desc: 'A base de agua carbonatada con sabor a lima o limón, incolora y sin cafeína.',
-              precio: 6000,
-            },
-            {
-              id: 'be10',
-              nombre: 'Colombiana 400 ml',
-              desc: 'Con un sabor espumoso de cola champán, perfecta para fiestas, reuniones y picnics.',
-              precio: 6000,
-            },
-            {
-              id: 'be11',
-              nombre: 'Hipinto 400 ml',
-              desc: 'Bebida gaseosa que representa la cultura santandereana, sabores kola y piña.',
-              precio: 6000,
-            },
-            {
-              id: 'be12',
-              nombre: 'Agua Mineral Manantial',
-              desc: 'Agua sin gas Manantial.',
-              precio: 9000,
-            },
-            {
-              id: 'be13',
-              nombre: 'Heineken 269 ml',
-              desc: 'Ligero sabor dulce de la malta pilsen y su amargor suave, cerveza seca de cuerpo ligero.',
-              precio: 10000,
-            },
-            {
-              id: 'be14',
-              nombre: 'Club Colombia Dorada 330 ml',
-              desc: 'Ideal si quieres sentir en tu paladar el sabor refrescante y balanceado entre malta y lúpulo.',
-              precio: 10000,
-            },
-            {
-              id: 'be15',
-              nombre: 'Club Colombia Roja 330 ml',
-              desc: 'Notas ligeramente amargas que contrastan con los sabores dulces y caramelo.',
-              precio: 10000,
-            },
-            {
-              id: 'be16',
-              nombre: 'Águila Original 355 ml',
-              desc: 'Refrescante, con un sabor suave y un porcentaje moderado de alcohol.',
-              precio: 10000,
-            },
-            {
-              id: 'be17',
-              nombre: 'Águila Light 330 ml',
-              desc: 'Sabor suave con poco amargor.',
-              precio: 10000,
-            },
-            {
-              id: 'be18',
-              nombre: 'Póker 330 ml',
-              desc: 'Sabor amargo con un toque de notas dulces.',
-              precio: 10000,
-            },
-            {
-              id: 'be19',
-              nombre: 'Coronita 210 ml',
-              desc: 'Moderadamente dulce, recuerda el sabor del cereal. Amargor limpio y ligero.',
-              precio: 12000,
-            },
-            {
-              id: 'be20',
-              nombre: 'Corona 355 ml',
-              desc: 'Moderadamente dulce, recuerda el sabor del cereal. Amargor limpio y ligero.',
-              precio: 15000,
-            },
-            {
-              id: 'be21',
-              nombre: 'Soda Hatsu Frambuesa & Rosas',
-              desc: 'Soda rosa de sabor dulce y delicioso, mezcla frutal y herbal.',
-              precio: 10000,
-            },
-            {
-              id: 'be22',
-              nombre: 'Soda Hatsu Limón & Hierbabuena',
-              desc: 'Soda amarilla de sabor especial y aroma relajante, mezcla frutal y herbal.',
-              precio: 10000,
-            },
-            {
-              id: 'be23',
-              nombre: 'Soda Hatsu Sandía & Albahaca',
-              desc: 'Soda verde de sabor tropical y refrescante, mezcla frutal y herbal.',
-              precio: 10000,
-            },
-            {
-              id: 'be24',
-              nombre: 'Soda Hatsu Uva Blanca & Romero',
-              desc: 'Soda ámbar de sabor especial y aroma relajante, mezcla frutal y herbal.',
-              precio: 10000,
-            },
-            {
-              id: 'be25',
-              nombre: 'Soda',
-              desc: 'Perfecta para acompañar tus mejores momentos, bebida hecha de fusiones de sabores.',
-              precio: 5000,
-            },
-            {
-              id: 'be26',
-              nombre: 'Bebida Energizante RedBull x 250 ml',
-              desc: '',
-              precio: 10000,
-            },
-            {
-              id: 'be27',
-              nombre: 'Canada Dry Ginger Ale',
-              desc: 'Bebida refrescante, saborizada con sabor a jengibre, ideal para fusionar con otros sabores.',
-              precio: 6000,
-            },
-            {
-              id: 'be28',
-              nombre: 'Canada Dry Agua Tónica',
-              desc: 'Bebida gasificada y refrescante, aromatizada con quinina.',
-              precio: 6000,
-            },
-            {
-              id: 'be29',
-              nombre: 'Té Hatsu Negro & Jugo de Limón',
-              desc: 'Té revitalizante, saludable y refrescante, alto contenido de teína.',
-              precio: 12000,
-            },
-            {
-              id: 'be30',
-              nombre: 'Té Hatsu Blanco sabor Mangostino',
-              desc: 'Té blanco de sabor muy suave, hecho con las hojas más jóvenes de la planta.',
-              precio: 12000,
-            },
-            {
-              id: 'be31',
-              nombre: 'Té Hatsu Carambolo & Flor de Loto',
-              desc: 'Bebida de té 0 calorías y 0 carbohidratos, mezcla de carambolo y flor de loto.',
-              precio: 12000,
-            },
-            {
-              id: 'be32',
-              nombre: 'Té Hatsu sabor a Granada & Mora Azul',
-              desc: 'Bebida de té 0 calorías y 0 carbohidratos, mezcla de té blanco con granada y mora azul.',
-              precio: 12000,
-            },
-            {
-              id: 'be33',
-              nombre: 'Té Hatsu Rojo sabor Frutos Rojos',
-              desc: 'Té rojo, variedad exclusiva cultivada en China, gran significado histórico.',
-              precio: 12000,
-            },
-            {
-              id: 'be34',
-              nombre: 'Té Hatsu Blanco sabor Flor de Cerezo',
-              desc: 'Suave mezcla de té blanco con el sabor natural de flor de cerezo.',
-              precio: 12000,
-            },
-          ],
-        },
-        {
-          cat: 'Cervezas 3 Cordilleras',
-          items: [
-            {
-              id: 'cc1',
-              nombre: 'Blanca | 3 Cordilleras',
-              desc: 'Cerveza tipo Wheat Ale color dorado, la puerta a nuestro mundo de cervezas artesanales.',
-              precio: 12000,
-            },
-            {
-              id: 'cc2',
-              nombre: 'Mulata | 3 Cordilleras',
-              desc: 'Cerveza tipo Amber Ale de color rojo intenso, combina todas las variedades de maltas.',
-              precio: 12000,
-            },
-            {
-              id: 'cc3',
-              nombre: 'Rosada | 3 Cordilleras',
-              desc: 'Cerveza tipo Rosé que causó sorpresa en el mercado por su color y tonos.',
-              precio: 12000,
-            },
-            {
-              id: 'cc4',
-              nombre: 'Mestiza | 3 Cordilleras',
-              desc: 'Cerveza tipo American Pale Ale, una fiesta de lúpulos americanos.',
-              precio: 12000,
-            },
-            {
-              id: 'cc5',
-              nombre: 'Negra | 3 Cordilleras',
-              desc: 'Cerveza tipo Stout inspirada en los sabores de los Andes, cargada de maltas tostadas.',
-              precio: 12000,
-            },
-            {
-              id: 'cc6',
-              nombre: 'Mona | 3 Cordilleras',
-              desc: 'Cerveza Premium tipo Blonde Ale, en los límites de la artesanalidad.',
-              precio: 12000,
-            },
-          ],
-        },
-        {
-          cat: 'Mocktails',
-          items: [
-            {
-              id: 'mo1',
-              nombre: 'Jamaiquino',
-              desc: '(Foto sujeta a cambios y presentación) Concentrado sabor con zumo de limón.',
-              precio: 14000,
-            },
-            {
-              id: 'mo2',
-              nombre: 'Lulo Mojito',
-              desc: '(Foto sujeta a cambios y presentación) La acidez del lulo con el sabor refrescante del Té Hatsu.',
-              precio: 14000,
-            },
-            {
-              id: 'mo3',
-              nombre: 'Mangostino Highball',
-              desc: '(Foto sujeta a cambios y presentación) La canela se reconoce por sus propiedades calmantes y diuréticas.',
-              precio: 14000,
-            },
-            {
-              id: 'mo4',
-              nombre: 'Soda de Mango Biche',
-              desc: '(Foto sujeta a cambios y presentación) Una Bretaña bien helada con limón y mango biche.',
-              precio: 14000,
-            },
-            {
-              id: 'mo5',
-              nombre: 'Caipineska',
-              desc: '(Foto sujeta a cambios y presentación) El limón aporta propiedades como la vitamina C.',
-              precio: 14000,
-            },
-            {
-              id: 'mo6',
-              nombre: 'Pink Tonic',
-              desc: '(Foto sujeta a cambios y presentación) Un mocktail con identidad propia.',
-              precio: 14000,
-            },
-          ],
-        },
-        {
-          cat: 'Cocteles',
-          items: [
-            {
-              id: 'co1',
-              nombre: 'Cuba Libre',
-              desc: 'Ron, coca-cola y limón.',
-              precio: 22000,
-            },
-            {
-              id: 'co2',
-              nombre: 'Alexander',
-              desc: 'Brandy, licor de café y helado de vainilla.',
-              precio: 27000,
-            },
-            {
-              id: 'co3',
-              nombre: 'Mojito Cubano',
-              desc: 'Ron blanco, hierbabuena, limón y soda Bretaña.',
-              precio: 22000,
-            },
-            {
-              id: 'co4',
-              nombre: 'Gin - Tonic',
-              desc: 'Ginebra y tónica Canada Dry.',
-              precio: 22000,
-            },
-            {
-              id: 'co5',
-              nombre: 'Cosmopolitan',
-              desc: 'Vodka, triple sec y jugo de arándanos.',
-              precio: 22000,
-            },
-            {
-              id: 'co6',
-              nombre: 'Piña Colada',
-              desc: 'Ron, piña, triple sec y crema de coco.',
-              precio: 27000,
-            },
-            {
-              id: 'co7',
-              nombre: 'Martini Peach',
-              desc: 'Vodka, triple sec y licor de durazno.',
-              precio: 22000,
-            },
-            {
-              id: 'co8',
-              nombre: 'Margarita',
-              desc: 'Tequila, triple sec y zumo de limón.',
-              precio: 22000,
-            },
-            {
-              id: 'co9',
-              nombre: 'Passion Fruit',
-              desc: 'Vodka, triple sec y jugo de maracuyá.',
-              precio: 22000,
-            },
-            {
-              id: 'co10',
-              nombre: 'Daiquiri Tropical',
-              desc: 'Ron, maracuyá y mora.',
-              precio: 22000,
-            },
-            {
-              id: 'co11',
-              nombre: 'La Pecera',
-              desc: 'Vodka, ginebra, tequila, triple sec, fresas picadas, cerezas, jugo de naranja y jugo de arándanos.',
-              precio: 50000,
-            },
-            {
-              id: 'co12',
-              nombre: 'Jarra de Tinto de Verano',
-              desc: 'Coctel a base de vino tinto, licor de naranja y 7up. (Rinde para 5 copas)',
-              precio: 90000,
-            },
-          ],
-        },
-        {
-          cat: 'Licores',
-          items: [
-            {
-              id: 'li1',
-              nombre: 'Tequila Don Julio Reposado',
-              desc: 'Color paja con gran brillantez y tonos dorados, notas a agave cocido y miel.',
-              precio: 780000,
-            },
-            {
-              id: 'li2',
-              nombre: 'Whisky Macallan Double Cask 12 Years',
-              desc: 'Forma parte de la colección Double Cask, estilo clásico Macallan con dulzura inigualable.',
-              precio: 900000,
-            },
-            {
-              id: 'li3',
-              nombre: "Whisky Buchanan's 18 Años",
-              desc: 'Sabor intenso de primera línea, con profundidades de chocolate negro, cereza negra y almendras.',
-              precio: 850000,
-            },
-            {
-              id: 'li4',
-              nombre: "Whisky Buchanan's Master",
-              desc: 'Suave y afrutado, con notas de naranja y chocolate, ideal con soda.',
-              precio: 650000,
-            },
-            {
-              id: 'li5',
-              nombre: "Whisky Jack Daniel's",
-              desc: 'Dulce y picante, con foco de canela. En su final recuerda a galletas de canela.',
-              precio: 300000,
-            },
-            {
-              id: 'li6',
-              nombre: "Whisky Buchanan's Deluxe",
-              desc: 'Mezcla brillante de notas cítricas de naranja, combinadas con chocolate y miel.',
-              precio: 350000,
-            },
-            {
-              id: 'li7',
-              nombre: 'Whisky Old Parr 12 Años',
-              desc: 'Suave en la boca, dulce con mucha miel, pasas y canela, notas de frutas tropicales y naranjas.',
-              precio: 370000,
-            },
-            {
-              id: 'li8',
-              nombre: 'Crema de Whisky Baileys trago',
-              desc: 'Baileys Original Irish Cream, la combinación más dulce de whisky y licor.',
-              precio: 25000,
-            },
-            {
-              id: 'li9',
-              nombre: 'Ron Viejo de Caldas 15 Años x 750 ml',
-              desc: 'Gran reserva especial 15 años, de la caña de azúcar y añejado en barrica.',
-              precio: 225500,
-            },
-            {
-              id: 'li10',
-              nombre: 'Ron Viejo de Caldas 8 Años x 750 ml',
-              desc: 'Sabor a madera, tostado con notas ácidas frutales, herbales y de coco.',
-              precio: 180000,
-            },
-            {
-              id: 'li11',
-              nombre: 'Ron Viejo de Caldas',
-              desc: 'Tradicional, reconocido por su carácter y calidad excepcional.',
-              precio: 120000,
-            },
-            {
-              id: 'li12',
-              nombre: 'Aguardiente Amarillo de Manzanares',
-              desc: 'Elaborado con la mejor caña gorobeta, anís sembrado en Guadalupe y agua pura de nacimiento.',
-              precio: 120000,
-            },
-            {
-              id: 'li13',
-              nombre: 'Aguardiente Antioqueño',
-              desc: 'Elaborado con alcoholes extra puros, notas dulces y ligeramente suaves.',
-              precio: 120000,
-            },
-            {
-              id: 'li14',
-              nombre: 'Vodka Smirnoff de Lulo x 375 ml',
-              desc: 'Combina un aroma fuerte con un dulce y ligero sabor a lulo.',
-              precio: 120000,
-            },
-            {
-              id: 'li15',
-              nombre: 'Vodka Absolut Regular x 375 ml',
-              desc: 'Sabor rico con cuerpo y complejo, suave, con el carácter distintivo del grano de trigo.',
-              precio: 100000,
-            },
-          ],
-        },
-        {
-          cat: 'Vinos',
-          items: [
-            {
-              id: 'vi1',
-              nombre: 'Marqués de Riscal Reserva',
-              desc: 'Color cereza muy cubierto, intenso y con apenas signos de evolución. Nariz muy expresiva.',
-              precio: 440000,
-            },
-            {
-              id: 'vi2',
-              nombre: 'Trivento Golden Reserve Malbec',
-              desc: 'Vino aromático con notas de ciruela, cereza y albaricoque silvestre.',
-              precio: 350000,
-            },
-            {
-              id: 'vi3',
-              nombre: 'Marqués de Casa Concha Merlot',
-              desc: 'Delicadas notas de grosella, especias, frutos del bosque y ciruela roja.',
-              precio: 310000,
-            },
-            {
-              id: 'vi4',
-              nombre: 'Trivento Reserve Malbec',
-              desc: 'Se destaca por su corazón frutal, volumen de boca y sensación golosa.',
-              precio: 250000,
-            },
-            {
-              id: 'vi5',
-              nombre: 'Casillero del Diablo Dark Red',
-              desc: 'Deslumbra por su color rojo oscuro e intenso, con toques de frutas negras.',
-              precio: 300000,
-            },
-            {
-              id: 'vi6',
-              nombre: 'Casillero del Diablo Rosé',
-              desc: 'Vino especial, elaborado con uvas tintas Shiraz vinificadas como blanco.',
-              precio: 180000,
-            },
-            {
-              id: 'vi7',
-              nombre: 'C.D Cabernet Sauvignon',
-              desc: 'Intensos aromas a cerezas, ciruelas y toques a vainilla y tostado.',
-              precio: 165000,
-            },
-            {
-              id: 'vi8',
-              nombre: 'Casillero del Diablo Red Blend',
-              desc: 'Maduro, con marcados aromas de cereza negra y ciruela, notas especiadas.',
-              precio: 165000,
-            },
-            {
-              id: 'vi9',
-              nombre: 'Casillero del Diablo Sauvignon Blanc',
-              desc: 'Toque mineral, estilo refrescante y frío, con aromas a durazno y grosellas.',
-              precio: 165000,
-            },
-            {
-              id: 'vi10',
-              nombre: 'Casillero del Diablo Reserva Merlot',
-              desc: 'Dócil, de suaves taninos, expresa frescor y dulzura.',
-              precio: 165000,
-            },
-            {
-              id: 'vi11',
-              nombre: 'Casillero del Diablo Malbec',
-              desc: 'Dulces y redondos taninos, aromas a moras y ciruelas negras con pimienta y vainilla.',
-              precio: 165000,
-            },
-            {
-              id: 'vi12',
-              nombre: 'Casillero del Diablo Carmenere',
-              desc: 'Variedad de Burdeos que florece en tierras chilenas, deliciosos aromas.',
-              precio: 165000,
-            },
-            {
-              id: 'vi13',
-              nombre: 'Frontera Carmenere',
-              desc: 'Brillante color rojo rubí y tonos violáceos, aromas a ciruelas y especias.',
-              precio: 165000,
-            },
-            {
-              id: 'vi14',
-              nombre: 'Frontera Cabernet Sauvignon',
-              desc: 'Ideal para disfrutar junto a los amigos y la familia.',
-              precio: 110000,
-            },
-            {
-              id: 'vi15',
-              nombre: 'Frontera Sauvignon Blanc',
-              desc: 'Color amarillo verdoso y aroma frutal, con notas cítricas y a pera.',
-              precio: 110000,
-            },
-            {
-              id: 'vi16',
-              nombre: 'Cono Sur Reserva Especial Pinot Noir',
-              desc: 'Del Valle de San Antonio, vino rojo-morado claro, profundo y brillante.',
-              precio: 130000,
-            },
-            {
-              id: 'vi17',
-              nombre: 'Cono Sur Bicicleta Sauvignon B.',
-              desc: 'Finas notas a pomelo combinadas con aromas a manzanas verdes y duraznos blancos.',
-              precio: 110000,
-            },
-            {
-              id: 'vi18',
-              nombre: 'Cono Sur Bicicleta Merlot',
-              desc: 'Aromas a frutos rojos, frutos del bosque y notas a cacao, mocha y tabaco.',
-              precio: 110000,
-            },
-            {
-              id: 'vi19',
-              nombre: 'Cono Sur Bicicleta Cabernet S.',
-              desc: 'Notas de ciruela, frambuesa y especias dulces, con chocolate y vainilla.',
-              precio: 110000,
-            },
-            {
-              id: 'vi20',
-              nombre: 'Cono Sur Bicicleta Carmenere',
-              desc: 'Notas frutales de guinda negra con toques de café, pimienta y tostado.',
-              precio: 110000,
-            },
-            {
-              id: 'vi21',
-              nombre: 'Lambrusco Rosato',
-              desc: 'Sabor suave y envolvente, fresco y ligero, notas frutales.',
-              precio: 90000,
-            },
-          ],
-        },
-        {
-          cat: 'Champagnes',
-          items: [
-            {
-              id: 'ch1',
-              nombre: 'Veuve Clicquot Rose Box',
-              desc: 'El primer champán rosado mezclado conocido en el mundo, viveza y explosión de frutas.',
-              precio: 1200000,
-            },
-            {
-              id: 'ch2',
-              nombre: 'M&C Brut Imperial',
-              desc: 'Mucha intensidad a manzana verde y cítricos, aromas minerales y a flores blancas.',
-              precio: 700000,
-            },
-            {
-              id: 'ch3',
-              nombre: 'Chandon Rosé',
-              desc: 'El perfecto equilibrio entre frescura y cremosidad, agradable sensación dulce.',
-              precio: 180000,
-            },
-            {
-              id: 'ch4',
-              nombre: 'Codorníu Clásico',
-              desc: 'Codorníu Clásico Brut, el tradicional por antonomasia.',
-              precio: 180000,
-            },
-          ],
-        },
-      ];
-      const SUGERENCIAS = {
-        Entradas: ['Sin cebolla', 'Sin picante', 'Para compartir'],
-        'Para Compartir': ['Extra salsa', 'Sin picante', 'Para compartir'],
-        'De la Parrilla': [
-          'Término medio',
-          'Bien asado',
-          'Sin sal',
-          'Poco grasa',
-        ],
-        'Angus Beef': ['Término medio', 'Bien asado', 'Poco grasa'],
-        'Burger Angus': [
-          'Sin cebolla',
-          'Extra queso',
-          'Papas aparte',
-          'Término de la carne',
-        ],
-        'De la Casa': ['Sin picante', 'Salsa aparte', 'Poca sal'],
-        'Del Mar': ['Sin picante', 'Salsa aparte'],
-        'Menú Infantil': ['Sin salsa', 'Papas extra'],
-        Postres: ['Sin crema', 'Al final de la mesa'],
-        Bebidas: ['Sin hielo', 'Bien fría', 'Sin azúcar'],
-        'Cervezas 3 Cordilleras': ['Bien fría', 'Sin vaso'],
-        Mocktails: ['Sin hielo', 'Bien frío'],
-        Cocteles: ['Sin hielo', 'Doble', 'Menos dulce'],
-        Licores: ['Con hielo', 'Solo', 'Con soda'],
-        Vinos: ['Bien frío', 'Temperatura ambiente'],
-        Champagnes: ['Bien frío'],
-      };
+      // MENU/SUGERENCIAS vienen de shared/menu.js (compartido con panel-cliente).
       const CATS = MENU.map((g) => g.cat);
       const ITEM_INDEX = {};
       MENU.forEach((g) =>
@@ -1113,10 +59,16 @@
         carrito: [],
         comandaAbierta: false,
         pedidos: {},
+        solicitudes: {},
         conectado: false,
         toast: '',
         editandoPedidoId: null,
         busqueda: '',
+        // Bandera en el state (no solo un atributo DOM transitorio) para
+        // que un re-render de por medio (ej. cerrar y reabrir el drawer
+        // mientras la comanda anterior sigue en vuelo) no vuelva a crear
+        // un botón "Enviar" habilitado y permita mandar el pedido 2 veces.
+        enviando: false,
       };
 
       /* ── Persistencia del carrito por mesa ──
@@ -1199,6 +151,76 @@
         es.onerror = () => setState({ conectado: false });
       }
 
+      /* ── Escucha en vivo de /solicitudes (carritos pendientes de panel-cliente) ──
+   Cada mesaId con solicitud es una mesa donde un cliente ya armó (y
+   mandó) su pedido desde el QR, pendiente de que el mesero lo revise
+   y confirme — ver panel-cliente/app.js y CLAUDE.md. ── */
+      let primeraCargaSolicitudes = true;
+      let prevSolicitudes = {}; // mesaId -> tenía líneas o no, para detectar solicitudes nuevas
+
+      function solicitudPendiente(id) {
+        const s = state.solicitudes[id];
+        return s && (s.lineas || []).length > 0 ? s : null;
+      }
+
+      function conectarSolicitudes() {
+        escucharSSE('/solicitudes', (tipo, evento) => {
+          state.solicitudes = aplicarEventoSSE(state.solicitudes, tipo, evento);
+          Object.entries(state.solicitudes).forEach(([id, s]) => {
+            const tieneAhora = !!solicitudPendiente(id);
+            // Una mesa especial generada por QR (no en Mesa 1..20) puede
+            // llegar acá antes que en /pedidos — registrarla igual que
+            // conectarPedidos() hace para pedidos de mesas desconocidas.
+            if (tieneAhora && !state.mesas[id]) {
+              state.mesas[id] = { nombre: (s && s.mesa) || id, activa: true };
+            }
+            if (tieneAhora && !prevSolicitudes[id] && !primeraCargaSolicitudes) {
+              avisarSolicitud(id);
+            }
+            prevSolicitudes[id] = tieneAhora;
+          });
+          primeraCargaSolicitudes = false;
+          render();
+        });
+      }
+
+      // Tono propio (distinto al de "pedido listo") para distinguir un
+      // pedido nuevo del cliente de un pedido propio que ya está listo.
+      const beepSolicitud = crearBeep([523, 659, 784]);
+
+      function avisarSolicitud(mesaId) {
+        beepSolicitud();
+        const nombre = state.mesas[mesaId] ? state.mesas[mesaId].nombre : mesaId;
+        aviso(nombre + ' hizo un pedido desde su mesa', { icono: 'restaurant' });
+      }
+
+      function confirmarSolicitud(mesaId) {
+        const solicitud = solicitudPendiente(mesaId);
+        if (!solicitud) return;
+        if (
+          state.carrito.length > 0 &&
+          !confirm(
+            'Ya tienes ítems sin enviar en la comanda de esta mesa — ¿reemplazarlos con el pedido del cliente?',
+          )
+        ) {
+          return;
+        }
+        const carrito = solicitud.lineas.map((l) => ({
+          id: l.id,
+          qty: l.qty,
+          nota: l.nota || '',
+        }));
+        setState({ carrito, comandaAbierta: true });
+      }
+
+      async function descartarSolicitud(mesaId) {
+        try {
+          await dbDelete(`/solicitudes/${mesaId}`);
+        } catch (e) {
+          aviso('No se pudo descartar — revisa la conexión');
+        }
+      }
+
       /* ── Mesas: generadas automáticamente (1 al 20) o agregadas localmente ── */
 
       // Elegir mesa es una selección local, nada más — no escribe en Firebase.
@@ -1247,6 +269,62 @@
           busqueda: '',
         });
         aviso('Editando pedido ' + (p.codigo || pedidoId));
+      }
+
+      // Cancelar (borrar por completo) un pedido — solo mientras sigue en
+      // "enviado", igual que editar. A diferencia de vaciar el carrito en
+      // modo edición (eso solo deshabilita "Enviar", el pedido original
+      // queda intacto en Firebase y la mesa sigue viéndose ocupada), esto
+      // borra el pedido de /pedidos de verdad, así mesaOcupada() lo deja
+      // de contar y la mesa vuelve a quedar libre si no tiene otros.
+      async function cancelarPedido(pedidoId) {
+        const p = state.pedidos[pedidoId];
+        if (!p || p.estado !== 'enviado') {
+          aviso(
+            'Solo se pueden cancelar pedidos que no han sido tomados por cocina',
+          );
+          return;
+        }
+        const ok = confirm(
+          `¿Cancelar el pedido ${p.codigo || ''} de ${p.mesa || 'esta mesa'}?\n\nSe borra por completo — no se puede deshacer.`,
+        );
+        if (!ok) return;
+        try {
+          await dbDelete(`/pedidos/${pedidoId}`);
+          if (state.editandoPedidoId === pedidoId) {
+            limpiarCarritoMesa(state.mesaId);
+            setState({ carrito: [], editandoPedidoId: null, comandaAbierta: false });
+          } else {
+            render();
+          }
+          aviso('Pedido cancelado · ' + (p.mesa || ''));
+        } catch (e) {
+          aviso('No se pudo cancelar — revisa la conexión');
+        }
+      }
+
+      // Aviso de cambio a cocina — para cuando el cliente pide modificar o
+      // quitar algo DESPUÉS de que cocina ya tomó el pedido (estado
+      // "preparacion"/"listo"), donde ya no se puede editar/cancelar en
+      // silencio desde acá. En vez de reescribir "lineas" sin que cocina se
+      // entere, esto solo cuelga un aviso visible+sonoro en panel-cocina
+      // para que se coordinen de viva voz — el pedido real no se toca.
+      async function avisarCambioCocina(pedidoId) {
+        const p = state.pedidos[pedidoId];
+        if (!p) return;
+        const nota = prompt(
+          '¿Qué quiere cambiar o quitar el cliente? (esto solo avisa a cocina, no modifica el pedido)',
+          '',
+        );
+        if (nota === null) return;
+        try {
+          await dbUpdate(`/pedidos/${pedidoId}`, {
+            avisoCambio: { mensaje: nota.trim(), mesero: state.mesero, ts: Date.now() },
+          });
+          aviso('Aviso enviado a cocina · ' + (p.mesa || ''));
+        } catch (e) {
+          aviso('No se pudo avisar — revisa la conexión');
+        }
       }
 
       // Avisa (sonido + notificación del sistema) apenas un pedido del mesero
@@ -1347,6 +425,7 @@
             mesero: perfil.nombre || perfil.usuario || 'Mesero',
           });
           conectarPedidos();
+          conectarSolicitudes();
           pedirPermisoNotificaciones();
         });
       }
@@ -1380,6 +459,13 @@
 
       /* ── Enviar comanda a Firebase ── */
       async function enviar() {
+        // Guardado en state (no solo deshabilitando el botón en el DOM):
+        // así, si de por medio se cierra/reabre el drawer mientras la
+        // petición sigue en vuelo, el nuevo botón "Enviar" que se rendericé
+        // también nace deshabilitado — sin esto, una conexión lenta permitía
+        // reabrir el drawer y mandar la misma comanda dos veces.
+        if (state.enviando) return;
+        setState({ enviando: true });
         const btn = document.getElementById('btnEnviar');
         if (btn) {
           btn.disabled = true;
@@ -1396,40 +482,49 @@
         const totalPedido = lineas.reduce((s, l) => s + l.precio * l.qty, 0);
         const nombreMesa = nombreMesaActual();
 
-        if (state.editandoPedidoId) {
-          // Verificar que el pedido sigue en estado "enviado" (pudo haber avanzado
-          // mientras el mesero editaba) — si ya no está en "enviado", crear uno nuevo.
-          const pedidoExistente = state.pedidos[state.editandoPedidoId];
-          if (pedidoExistente && pedidoExistente.estado === 'enviado') {
-            try {
-              await dbUpdate(`/pedidos/${state.editandoPedidoId}`, {
-                lineas,
-                total: totalPedido,
-                tsModificado: Date.now(),
-              });
-              limpiarCarritoMesa(state.mesaId);
-              setState({
-                carrito: [],
-                comandaAbierta: false,
-                tab: 'pedidos',
-                editandoPedidoId: null,
-              });
-              aviso('Comanda actualizada · ' + nombreMesa);
-            } catch (e) {
-              aviso('No se pudo actualizar — revisa la conexión');
+        try {
+          if (state.editandoPedidoId) {
+            // Verificar que el pedido sigue en estado "enviado" (pudo haber avanzado
+            // mientras el mesero editaba) — si ya no está en "enviado", crear uno nuevo.
+            const pedidoExistente = state.pedidos[state.editandoPedidoId];
+            if (pedidoExistente && pedidoExistente.estado === 'enviado') {
+              try {
+                await dbUpdate(`/pedidos/${state.editandoPedidoId}`, {
+                  lineas,
+                  total: totalPedido,
+                  tsModificado: Date.now(),
+                });
+                limpiarCarritoMesa(state.mesaId);
+                setState({
+                  carrito: [],
+                  comandaAbierta: false,
+                  tab: 'pedidos',
+                  editandoPedidoId: null,
+                });
+                aviso('Comanda actualizada · ' + nombreMesa);
+              } catch (e) {
+                aviso('No se pudo actualizar — revisa la conexión');
+              }
+            } else {
+              // Pedido ya fue tomado por cocina, crear uno nuevo en vez de sobreescribir
+              aviso('Cocina ya tomó ese pedido — se creará uno nuevo');
+              state.editandoPedidoId = null;
+              await enviarNuevo(lineas, totalPedido, nombreMesa);
             }
           } else {
-            // Pedido ya fue tomado por cocina, crear uno nuevo en vez de sobreescribir
-            aviso('Cocina ya tomó ese pedido — se creará uno nuevo');
-            state.editandoPedidoId = null;
             await enviarNuevo(lineas, totalPedido, nombreMesa);
           }
-        } else {
-          await enviarNuevo(lineas, totalPedido, nombreMesa);
-        }
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = 'Enviar a cocina';
+        } finally {
+          // Se resetea siempre (éxito o error) y vía setState — así, aunque
+          // el drawer se haya cerrado y reabierto de por medio (creando un
+          // botón nuevo en el DOM), el próximo render ya sabe que se puede
+          // volver a enviar en vez de quedar bloqueado o duplicar el envío.
+          setState({ enviando: false });
+          const btnActual = document.getElementById('btnEnviar');
+          if (btnActual) {
+            btnActual.disabled = state.carrito.length === 0;
+            btnActual.textContent = 'Enviar a cocina';
+          }
         }
       }
 
@@ -1452,6 +547,11 @@
         try {
           await dbPush('/pedidos', pedido);
           limpiarCarritoMesa(state.mesaId);
+          // Si esta mesa tenía un pedido de cliente pendiente, ya se cargó
+          // (o se descartó) — no volver a ofrecerlo una vez enviado a cocina.
+          if (solicitudPendiente(state.mesaId)) {
+            dbDelete(`/solicitudes/${state.mesaId}`).catch(() => {});
+          }
           setState({
             carrito: [],
             comandaAbierta: false,
@@ -1554,9 +654,11 @@
     ${mesasOrdenadas
       .map(([id, m]) => {
         const ocupada = mesaOcupada(id);
-        return `<button class="mesa-card ${id === state.mesaId ? 'elegida' : ''} ${ocupada ? 'ocupada' : ''}" data-id="${id}">
+        const pendiente = solicitudPendiente(id);
+        return `<button class="mesa-card ${id === state.mesaId ? 'elegida' : ''} ${ocupada ? 'ocupada' : ''} ${pendiente ? 'con-solicitud' : ''}" data-id="${id}">
+        ${pendiente ? '<span class="mesa-solicitud-badge material-symbols-outlined">restaurant</span>' : ''}
         <b>${escapeHtml(m.nombre)}</b>
-        <small>${ocupada ? 'Ocupada' : 'Libre'}</small>
+        <small>${pendiente ? 'Pedido del cliente' : ocupada ? 'Ocupada' : 'Libre'}</small>
       </button>`;
       })
       .join('')}
@@ -1599,14 +701,32 @@
         }
 
         const editandoLabel = state.editandoPedidoId
-          ? `<div style="background:var(--color-accent-100);border:1px solid var(--color-accent-300);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--color-accent-700);display:flex;align-items:center;gap:8px">
-        <span style="font-weight:700;display:inline-flex;align-items:center;gap:5px"><span class="material-symbols-outlined">edit</span>Editando pedido</span>
-        <button id="btnCancelarEdicion" style="margin-left:auto;border:1px solid var(--color-accent-300);background:transparent;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--color-accent-700);cursor:pointer">Cancelar edición</button>
+          ? `<div style="background:var(--color-accent-100);border:1px solid var(--color-accent-300);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--color-accent-700)">
+        <div style="font-weight:700;display:inline-flex;align-items:center;gap:5px"><span class="material-symbols-outlined">edit</span>Editando pedido</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="btnCancelarEdicion" style="border:1px solid var(--color-accent-300);background:transparent;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--color-accent-700);cursor:pointer">Cancelar edición</button>
+          <button id="btnCancelarPedidoEdicion" style="border:1px solid #c2410c;background:transparent;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;color:#c2410c;cursor:pointer">Eliminar pedido</button>
+        </div>
+      </div>`
+          : '';
+
+        const solicitud = solicitudPendiente(state.mesaId);
+        const solicitudBanner = solicitud
+          ? `<div style="background:var(--color-accent-2-100);border:1px solid var(--color-accent-2-500);border-radius:14px;padding:14px;margin-bottom:12px">
+        <div style="font-weight:700;color:var(--color-accent-2-700);display:flex;align-items:center;gap:6px;margin-bottom:8px"><span class="material-symbols-outlined">restaurant</span>Pedido del cliente esperando confirmación</div>
+        <div style="font-size:12.5px;color:var(--color-neutral-700);display:flex;flex-direction:column;gap:2px">
+          ${solicitud.lineas.map((l) => `<span>${l.qty}× ${escapeHtml(l.nombre)}${l.nota ? ' — ' + escapeHtml(l.nota) : ''}</span>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn-ghost" id="btnDescartarSolicitud" style="flex:1">Descartar</button>
+          <button class="btn-send" id="btnConfirmarSolicitud" style="flex:2">Confirmar pedido</button>
+        </div>
       </div>`
           : '';
 
         return `
   ${editandoLabel}
+  ${solicitudBanner}
   <div class="menu-search-wrap">
     <svg class="menu-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
     <input class="menu-search" id="menuSearch" type="text" placeholder="Buscar producto…" value="${escapeHtml(state.busqueda)}">
@@ -1662,7 +782,7 @@
       <div class="drawer-total"><span>Total</span><span>${cop(total())}</span></div>
       <div class="drawer-actions">
         <button class="btn-ghost" id="btnVaciar">Vaciar</button>
-        <button class="btn-send" id="btnEnviar" ${state.carrito.length ? '' : 'disabled'}>Enviar a cocina</button>
+        <button class="btn-send" id="btnEnviar" ${state.carrito.length && !state.enviando ? '' : 'disabled'}>${state.enviando ? 'Enviando…' : 'Enviar a cocina'}</button>
       </div>
     </div>
   </div>`;
@@ -1685,10 +805,23 @@
                   ? 'var(--color-neutral-500)'
                   : 'var(--color-accent)';
             const pasos = ['Enviado', 'En preparación', 'Listo', 'Servido'];
-            // Botón de editar solo para pedidos en estado "enviado"
+            // Editar/cancelar solo para pedidos en estado "enviado" — una vez
+            // que cocina lo toma ("preparacion" en adelante) ya no se puede
+            // deshacer desde acá.
             const btnEditar =
               p.estado === 'enviado'
-                ? `<button class="btn-servir" style="background:var(--color-accent);margin-top:8px" data-editar="${id}"><span class="material-symbols-outlined">edit</span>Editar pedido</button>`
+                ? `<div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn-servir" style="background:var(--color-accent);flex:2;margin-top:0" data-editar="${id}"><span class="material-symbols-outlined">edit</span>Editar pedido</button>
+              <button class="btn-servir" style="background:transparent;border:1px solid var(--color-divider);color:#c2410c;flex:1;margin-top:0" data-cancelar="${id}"><span class="material-symbols-outlined">delete</span>Cancelar</button>
+            </div>`
+                : '';
+            // Ya en "preparacion"/"listo" no se puede editar/cancelar en
+            // silencio — solo avisar a cocina para coordinar en persona.
+            const btnAviso =
+              p.estado === 'preparacion' || p.estado === 'listo'
+                ? p.avisoCambio
+                  ? `<p style="font-size:11.5px;color:var(--color-neutral-500);margin-top:10px;text-align:center">Aviso enviado — esperando a cocina</p>`
+                  : `<button class="btn-servir" style="background:transparent;border:1px solid var(--color-divider);color:var(--color-neutral-700);margin-top:12px" data-avisar="${id}"><span class="material-symbols-outlined">campaign</span>Avisar cambio a cocina</button>`
                 : '';
             return `<div class="pedido-card ${p.estado === 'listo' ? 'listo' : ''}">
       <div class="p-top"><span class="p-mesa">${escapeHtml(String(p.mesa ?? '—'))}</span><span class="p-badge" style="background:${color}">${escapeHtml(ETIQUETA[p.estado] || p.estado)}</span></div>
@@ -1698,6 +831,7 @@
       <div class="p-total"><span>Total</span><span>${cop(p.total)}</span></div>
       ${p.estado === 'listo' ? `<button class="btn-servir" data-servir="${id}">Marcar servido</button>` : ''}
       ${btnEditar}
+      ${btnAviso}
     </div>`;
           })
           .join('');
@@ -1777,6 +911,17 @@
             setState({ carrito: [], editandoPedidoId: null });
           };
 
+        const btnConfirmarSolicitud = document.getElementById(
+          'btnConfirmarSolicitud',
+        );
+        if (btnConfirmarSolicitud)
+          btnConfirmarSolicitud.onclick = () => confirmarSolicitud(state.mesaId);
+        const btnDescartarSolicitud = document.getElementById(
+          'btnDescartarSolicitud',
+        );
+        if (btnDescartarSolicitud)
+          btnDescartarSolicitud.onclick = () => descartarSolicitud(state.mesaId);
+
         document
           .querySelectorAll('[data-cat]')
           .forEach(
@@ -1838,10 +983,22 @@
         document
           .querySelectorAll('[data-servir]')
           .forEach((b) => (b.onclick = () => marcarServido(b.dataset.servir)));
-        // Editar pedido desde la vista de pedidos
+        // Editar/cancelar pedido desde la vista de pedidos
         document
           .querySelectorAll('[data-editar]')
           .forEach((b) => (b.onclick = () => editarPedido(b.dataset.editar)));
+        document
+          .querySelectorAll('[data-cancelar]')
+          .forEach((b) => (b.onclick = () => cancelarPedido(b.dataset.cancelar)));
+        document
+          .querySelectorAll('[data-avisar]')
+          .forEach((b) => (b.onclick = () => avisarCambioCocina(b.dataset.avisar)));
+        const btnCancelarPedidoEdicion = document.getElementById(
+          'btnCancelarPedidoEdicion',
+        );
+        if (btnCancelarPedidoEdicion)
+          btnCancelarPedidoEdicion.onclick = () =>
+            cancelarPedido(state.editandoPedidoId);
       }
 
       render();

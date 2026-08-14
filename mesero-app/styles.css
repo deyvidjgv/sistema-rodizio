@@ -22,6 +22,9 @@ h1,h2,h3,h4{font-family:var(--font-heading);font-weight:400;margin:0}
   .mesa-card.ocupada{border-color:var(--color-accent-500);background:var(--color-accent-100)}
   .mesa-card.ocupada small{color:var(--color-accent-700)}
   .mesa-card.elegida{border-color:var(--color-accent);border-width:2px}
+  .mesa-card.con-solicitud{border-color:var(--color-accent-2-500);background:var(--color-accent-2-100)}
+  .mesa-card.con-solicitud small{color:var(--color-accent-2-700);font-weight:700}
+  .mesa-solicitud-badge{font-size:16px!important;color:var(--color-accent-2-600)}
 
   /* ── Top bar ── */
   .topbar{position:sticky;top:0;z-index:10;background:color-mix(in srgb, var(--color-bg) 90%, transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--color-divider);padding:12px 18px;display:flex;align-items:center;gap:10px}

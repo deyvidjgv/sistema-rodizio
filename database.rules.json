@@ -28,6 +28,13 @@
   //      ni siquiera sube este archivo — hoy solo se aplicaría pegándolo a
   //      mano en la consola. Eso también falta conectarlo.
   //
+  //   5. /solicitudes (panel-cliente, sin login) NO puede exigir
+  //      "auth != null" como el resto — el comensal que escanea el QR
+  //      nunca se autentica. Necesita su propia regla de escritura pública
+  //      y acotada (ej. validar shape de "lineas" para no dejar escribir
+  //      cualquier cosa), sin abrir el resto de la base. Todavía no está
+  //      escrita abajo — falta antes de poder aplicar este archivo.
+  //
   // Mientras tanto, las reglas activas en la consola siguen abiertas
   // (.read/.write: true). Es una limitación conocida y aceptada — ver README.
   "rules": {
@@ -53,5 +60,10 @@
       ".read": "auth != null",
       ".write": "auth != null"
     }
+
+    // "solicitudes" queda fuera a propósito — ver punto 5 de arriba.
+    // No copiar el patrón de "pedidos" acá: dejaría a cualquiera con la
+    // URL leer/escribir sin límite, que es justo lo que esta Fase 9
+    // busca cerrar en el resto de la base.
   }
 }

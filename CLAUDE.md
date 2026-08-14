@@ -8,6 +8,9 @@
 | Panel de caja | `panel-caja/` | Cobro, historial, exportar Excel | Tablet/PC |
 | Panel de cocina | `panel-cocina/` | Cocineros, avanzar estado | Tablet |
 | Panel de administración | `panel-admin/` | Gestionar trabajadores | PC |
+| Panel de cliente | `panel-cliente/` | Comensales, piden desde la mesa vía QR | Celular propio del cliente |
+
+`panel-cliente` es distinto a las otras 4: **no tiene login** (nadie se autentica) y **no es PWA** (sin `manifest.webmanifest` ni `sw.js`) — es una página web simple que se abre al escanear el QR de la mesa, para que cargue rápido sin fricción de instalación.
 
 > **Nota:** `README.md` (en la raíz) es la documentación general del proyecto. Este archivo se centra en lo que hay que saber **antes de tocar el código**: decisiones tomadas a propósito, y trampas conocidas.
 
@@ -34,6 +37,12 @@ El SDK de Firebase **sí** se usa, pero solo para Authentication (`shared/auth.j
   pagado        true                      # opcional — lo pone panel-caja al cobrar
   tsPago        1690000000000             # opcional — timestamp del cobro
 
+/solicitudes/{mesaId}          # carrito pendiente de un cliente vía QR, ver panel-cliente
+  lineas        [{id, nombre, cat, qty, precio, nota}]   # mismo shape que pedidos.lineas
+  mesa          "Mesa 7"                  # nombre visible, para que mesero-app pueda
+                                           # registrar la mesa aunque no la conociera aún
+  actualizado   1690000000000
+
 /contadores/{YYYY-MM-DD}
   <number>       # último correlativo del día, escritura con ETag condicional (evita choques)
 
@@ -49,11 +58,14 @@ El SDK de Firebase **sí** se usa, pero solo para Authentication (`shared/auth.j
 
 **Flujo de un pedido:** mesero envía (`enviado`) → cocina pasa a `preparacion` → `listo` → mesero marca `entregado` → caja confirma el cobro (`pagado: true`, sin tocar `estado`). Las apps escuchan `/pedidos` en vivo por SSE, así que un cambio se ve al instante en todas las pantallas sin refrescar.
 
+**Flujo de un pedido iniciado por el cliente (QR):** el cliente escanea el QR de su mesa → abre `panel-cliente` → arma su carrito, que se guarda en vivo en `/solicitudes/{mesaId}` → toca "Enviar pedido al mesero". Eso **no** crea un pedido ni pasa a cocina — solo le avisa a `mesero-app` (sonido + toast + indicador en la tarjeta de esa mesa) que hay un pedido esperando. El mesero se acerca, revisa el detalle, y toca "Confirmar pedido": recién ahí se carga como comanda normal (`enviado` en `/pedidos`) y se borra `/solicitudes/{mesaId}`. Si el mesero prefiere no usarlo (pedido de prueba, cliente se arrepintió), puede "Descartar" sin crear nada. El cliente nunca manda nada directo a cocina.
+
 **División de responsabilidades por panel** (a propósito, no se pisan):
-- `mesero-app`: crea el pedido (`enviado`) y lo marca `entregado` cuando lo sirve.
+- `mesero-app`: crea el pedido (`enviado`) y lo marca `entregado` cuando lo sirve. También revisa y confirma (o descarta) las solicitudes de `panel-cliente`.
 - `panel-cocina`: avanza `enviado` → `preparacion` → `listo`. No toca cobros.
 - `panel-caja`: solo ve pedidos ya `entregado` y confirma el pago (`pagado`/`tsPago`). **No** avanza el estado del pedido — eso es trabajo de cocina. Tampoco muestra el tablero Nuevos/Preparación/Listos: eso se quitó a propósito porque duplicaba a `panel-cocina`.
-- `panel-admin`: gestiona trabajadores (crear, editar, activar/desactivar, eliminar). No toca pedidos.
+- `panel-admin`: gestiona trabajadores (crear, editar, activar/desactivar, eliminar) y genera/imprime los QR de cada mesa. No toca pedidos.
+- `panel-cliente`: sin login, deja al comensal armar y mandar su carrito a `/solicitudes/{mesaId}`. Nunca escribe en `/pedidos` directamente.
 
 ## Acceso y roles — el modelo real
 
@@ -83,7 +95,8 @@ Vive todo en `mesero-app`, no hay CRUD de mesas en ningún panel:
 
 - Vanilla JS, sin frameworks, sin bundler.
 - Cada app son 3 archivos: `index.html` (estructura) + `styles.css` (estilos propios) + `app.js` (lógica). Lo común vive en `shared/`.
-- El menú completo (162 platos/bebidas + `SUGERENCIAS` por categoría) está **inline en `mesero-app/app.js`**, no en un archivo aparte.
+- El menú completo (162 platos/bebidas + `SUGERENCIAS` por categoría) vive en **`shared/menu.js`** (script clásico, sin build) porque lo comparten `mesero-app` y `panel-cliente`.
+- **Fotos de platos**: `icons/menu/{id}.webp` (155 de 162 ítems tienen foto — los que no, se muestran con un ícono genérico). Se bajaron una sola vez del menú digital existente en Ola Click (`rodizio-cucuta.ola.click`) y quedaron como archivos estáticos del repo, referenciados desde `shared/menu.js` (campo `img` por ítem) — no hay ninguna dependencia en vivo con Ola Click. Si se agrega un plato nuevo o cambia una foto, hay que bajar/reemplazar el `.webp` a mano y agregar/editar el campo `img` en `shared/menu.js`. Actualmente solo se muestran en `panel-cliente` — `mesero-app` no las usa (podría agregarse igual, reusando el mismo campo).
 - IDs del menú: prefijo por categoría + número (`en1`, `pa3`, `ab2`…). Debe ser único en todo el archivo.
 - Iconos y logo: **centralizados en `icons/`** en la raíz, no duplicados por panel.
 - Service worker por app: cachea el cascarón para offline + instalable. Las peticiones a `firebaseio.com` **nunca** se cachean — siempre en vivo.
@@ -91,7 +104,7 @@ Vive todo en `mesero-app`, no hay CRUD de mesas en ningún panel:
 
 ## Limitaciones conocidas (aceptadas a propósito)
 
-1. **Las reglas de RTDB están abiertas** (`.read/.write: true`) — cualquiera con la URL de la base puede leer y escribir, **aunque las 4 apps autentiquen con Firebase Auth**: el guard de cada app es una verificación de la interfaz, no una regla de la base. Cerrarlo de verdad es la "Fase 9" — ver `database.rules.json`, que es un **borrador que NO debe aplicarse todavía** (rompería las 4 apps; el archivo explica exactamente qué falta).
+1. **Las reglas de RTDB están abiertas** (`.read/.write: true`) — cualquiera con la URL de la base puede leer y escribir, **aunque las apps autentiquen con Firebase Auth**: el guard de cada app es una verificación de la interfaz, no una regla de la base. Cerrarlo de verdad es la "Fase 9" — ver `database.rules.json`, que es un **borrador que NO debe aplicarse todavía** (rompería las apps; el archivo explica exactamente qué falta). Ojo: cuando se aborde esa fase, `/solicitudes` va a necesitar una regla de escritura pública (sin `auth != null`) a diferencia del resto de rutas, porque `panel-cliente` no tiene login — queda anotado también en el propio `database.rules.json`.
 2. **Restablecer contraseña por correo no funciona.** Los trabajadores usan `usuario@rodizio.local` (correo sintético interno, sin bandeja real), así que Firebase no tiene a quién mandarle el link. Resetear la contraseña de otro trabajador se hace a mano desde la consola de Firebase.
 3. **Eliminar un trabajador** desde `panel-admin` borra su perfil de `/trabajadores` (con eso ya no puede entrar), pero **no** borra su cuenta de Firebase Authentication — esa queda huérfana y hay que borrarla desde la consola. No hay forma de automatizarlo sin backend (Admin SDK).
 4. **Crear cuentas de otros trabajadores usa una segunda instancia de Firebase** (`authSecundaria()` en `auth.js`) para que el admin no pierda su propia sesión al crear una. Es una limitación conocida del SDK, no un bug nuestro.
@@ -108,6 +121,7 @@ Vive todo en `mesero-app`, no hay CRUD de mesas en ningún panel:
 - **No** volver a poner el tablero Nuevos/Preparación/Listos en `panel-caja` — duplicaba `panel-cocina` a propósito quitado.
 - **No** aplicar `database.rules.json` sin antes hacer lo que ese mismo archivo lista.
 - **No** volver a introducir reserva exclusiva de mesas (dueño / `meseroId` / bloqueo) — se probó y se descartó a propósito.
+- **No** dejar que `panel-cliente` escriba directo en `/pedidos` — el pedido del comensal solo va a `/solicitudes/{mesaId}`; el mesero es siempre quien confirma y lo pasa a cocina. Fue una decisión explícita del dueño del negocio, no un detalle técnico.
 
 ## Cómo crear el primer admin (consola de Firebase)
 

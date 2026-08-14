@@ -16,9 +16,13 @@
 
 let pedidos = {};
 let vistos = new Set();
+let avisosVistos = {}; // id -> ts del último avisoCambio ya alertado
 let primeraCarga = true;
 let sonidoOn = true;
 const beep = crearBeep([880, 1180]);
+// Tono distinto (descendente) para no confundir "pedido nuevo" con
+// "el mesero avisa un cambio en algo que ya se está cocinando".
+const beepAviso = crearBeep([740, 494]);
 
 function minsDesde(ts){ return Math.max(0, Math.round((Date.now() - ts) / 60000)); }
 
@@ -56,6 +60,17 @@ async function marcar(id, estado) {
   }
 }
 
+// El mesero avisó un cambio (ver mesero-app: avisarCambioCocina) sin tocar
+// el pedido real — cocina confirma que ya habló con el mesero en persona
+// y esto solo limpia la alerta, no cambia "lineas" ni "estado".
+async function marcarAvisoVisto(id) {
+  try {
+    await dbUpdate(`/pedidos/${id}`, { avisoCambio: null });
+  } catch (e) {
+    alert("No se pudo confirmar — revisa la conexión e intenta de nuevo.");
+  }
+}
+
 function linea(l) {
   return `<div class="t-linea">
     <span class="t-qty">${l.qty}×</span>
@@ -72,12 +87,23 @@ function ticket(id, p, accion) {
   else if (accion === "listo") foot = `<button class="t-action a-listo" onclick="marcar('${id}','listo')">Marcar listo</button>`;
   else if (accion === "espera") foot = `<span class="t-badge-listo"><span class="b"></span>Esperando mesero</span>`;
 
+  // El pedido en sí no se toca — solo un aviso visible de que el mesero
+  // quiere coordinar un cambio en persona (ver marcarAvisoVisto arriba).
+  const avisoHtml = p.avisoCambio
+    ? `<div class="t-aviso">
+      <span class="material-symbols-outlined">priority_high</span>
+      <div class="t-aviso-texto"><b>El mesero avisa un cambio</b>${p.avisoCambio.mensaje ? `<br>${escapeHtml(p.avisoCambio.mensaje)}` : ""}<br><small>${escapeHtml(p.avisoCambio.mesero || "")}</small></div>
+      <button onclick="marcarAvisoVisto('${id}')">Entendido</button>
+    </div>`
+    : "";
+
   return `<div class="ticket ${p.estado}${nueva ? " nueva" : ""}" data-id="${id}">
     <div class="t-top">
       <div><div class="t-codigo">${escapeHtml(p.codigo || id)}</div><span class="t-mesa">${escapeHtml(String(p.mesa ?? "—"))}</span></div>
       <div class="t-time ${min >= 15 ? "warn" : ""}">hace ${min} min</div>
     </div>
     <div class="t-mesero">${escapeHtml(p.mesero || "Mesero")}</div>
+    ${avisoHtml}
     <div class="t-lineas">${lineasHtml}</div>
     <div class="t-foot">${foot}</div>
   </div>`;
@@ -100,6 +126,17 @@ function render() {
 
   const nuevosSinVer = enviados.some(([id]) => !vistos.has(id));
   if (nuevosSinVer && !primeraCarga && sonidoOn) beep();
+
+  // Un aviso "nuevo" es uno cuyo ts no coincide con el último que ya
+  // sonamos para ese pedido — así no se repite el sonido en cada re-render
+  // mientras el aviso sigue pendiente, pero si cocina lo marca "Entendido"
+  // y el mesero avisa de nuevo (otro ts), vuelve a sonar.
+  entries.forEach(([id, p]) => {
+    if (p.avisoCambio && avisosVistos[id] !== p.avisoCambio.ts) {
+      if (!primeraCarga && sonidoOn) beepAviso();
+      avisosVistos[id] = p.avisoCambio.ts;
+    }
+  });
 
   entries.forEach(([id]) => vistos.add(id));
   primeraCarga = false;

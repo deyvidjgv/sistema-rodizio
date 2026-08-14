@@ -20,6 +20,7 @@
 <link rel="stylesheet" href="../shared/theme.css">
 <link rel="stylesheet" href="../shared/ui.css">
 <link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js" defer></script>
 </head>
 <body>
 
@@ -50,6 +51,18 @@
       <a class="panel-link" href="../panel-caja/">Caja</a>
       <a class="panel-link" href="../panel-cocina/">Cocina</a>
     </div>
+  </section>
+
+  <section class="card">
+    <details id="qrDetails">
+      <summary><h2 style="display:inline">Códigos QR de mesas</h2></summary>
+      <p class="sub">Cada QR abre el menú de <a href="../panel-cliente/" target="_blank" rel="noopener">panel-cliente</a> para esa mesa. El cliente arma su pedido, pero no entra a cocina hasta que el mesero lo confirme desde <em>mesero-app</em>. Descarga e imprime el que corresponda a cada mesa.</p>
+      <div class="qr-custom">
+        <input id="fMesaCustom" placeholder="Nombre de mesa especial (ej. Terraza 1)">
+        <button class="cta" id="btnGenerarQrCustom" type="button" style="width:auto;padding:0 20px">Generar</button>
+      </div>
+      <div id="qrGrid" class="qr-grid"></div>
+    </details>
   </section>
 
   <section class="card">

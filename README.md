@@ -32,30 +32,35 @@ sistema-rodizio/
 │   ├── firebase.js       ← Cliente HTTP REST + SSE en tiempo real
 │   ├── roles.js          ← Permisos y niveles de usuario
 │   ├── util.js           ← Funciones de formato de moneda (COP), beeps y sanitización
-│   ├── ui.js             ← Notificaciones Toast unificadas en tiempo real
-│   ├── ui.css            ← Componentes UI comunes (Toasts, botones CTA, empty states)
+│   ├── menu.js           ← Menú completo (platos/bebidas + sugerencias), compartido por mesero-app y panel-cliente
+│   ├── ui.js              ← Notificaciones Toast unificadas en tiempo real
+│   ├── ui.css             ← Componentes UI comunes (Toasts, botones CTA, empty states)
 │   └── theme.css         ← Variables de diseño global, paleta de colores y fuentes
-├── mesero-app/           ← PWA para Meseros (Toma de comandas, menú interactivo y carritos por mesa)
+├── icons/                ← Íconos y logo centralizados (incluye icons/menu/ con la foto de cada plato)
+├── mesero-app/           ← PWA para Meseros (Toma de comandas, menú interactivo, carritos por mesa y confirmación de pedidos hechos por QR)
 ├── panel-cocina/         ← Panel Kanban de Cocina (Recepción, preparación y despacho)
 ├── panel-caja/           ← Panel de Caja (Facturación, cierre de cuentas y exportación a Excel)
-└── panel-admin/          ← Panel de Administración (Gestión de personal y roles)
+├── panel-admin/          ← Panel de Administración (Gestión de personal y generación de QR por mesa)
+└── panel-cliente/        ← Página pública sin login que se abre al escanear el QR de la mesa, para pedir desde el celular propio
 ```
 
 ---
 
 ## 📋 Módulos y Paneles Activos
 
-1. **Login Unificado (`/`)**: Entrada global que detecta automáticamente el rol del trabajador y redirige al panel correspondiente.
-2. **PWA Meseros (`/mesero-app`)**: Interfaz táctil adaptada a celulares. Soporta persitencia de carritos por mesa, búsqueda en el menú y alertas instantáneas cuando la cocina marca un pedido como "Listo".
-3. **Panel Cocina (`/panel-cocina`)**: Pantalla horizontal dividida en estados (*Nuevos*, *En preparación*, *Listos*). Cuenta con alertas sonoras diferenciales.
+1. **Login Unificado (`/`)**: Entrada global que verifica la sesión y deja elegir entre los paneles operativos (mesero, caja, cocina) a los que cualquier trabajador activo tiene acceso; el panel de administración solo lo ven quienes tienen ese rol asignado.
+2. **PWA Meseros (`/mesero-app`)**: Interfaz táctil adaptada a celulares. Soporta persistencia de carritos por mesa, búsqueda en el menú, alertas instantáneas cuando la cocina marca un pedido como "Listo", y revisión/confirmación de los pedidos que un cliente arma desde su QR antes de mandarlos a cocina.
+3. **Panel Cocina (`/panel-cocina`)**: Pantalla horizontal dividida en estados (*Nuevos*, *En preparación*, *Listos*). Cuenta con alertas sonoras diferenciales, incluyendo un aviso cuando el mesero necesita coordinar un cambio en un pedido que ya está en preparación.
 4. **Panel Caja (`/panel-caja`)**: Control financiero para cobrar cuentas pendientes, historial del día y reporte descargable en formato Excel.
-5. **Panel Administración (`/panel-admin`)**: Alta de trabajadores en Firebase Auth y asignación granular de roles.
+5. **Panel Administración (`/panel-admin`)**: Alta, edición y activación/desactivación de trabajadores, y generación/descarga de los códigos QR de cada mesa.
+6. **Panel Cliente (`/panel-cliente`)**: Página pública sin login, pensada para abrirse al escanear el QR de la mesa. El comensal arma su pedido con fotos de cada plato y lo envía — el mesero lo revisa y confirma antes de que entre a cocina, así el cliente nunca escribe directo en las comandas.
 
 ---
 
 ## ⚡ Características Destacadas
 
 - **Cero Build/Bundlers**: Carga instantánea directa en el navegador.
-- **Instalable (PWA)**: Cada módulo incluye manifest y Service Worker independiente para pantalla de inicio.
+- **Instalable (PWA)**: Cada panel operativo incluye manifest y Service Worker independiente para pantalla de inicio (`panel-cliente` es la excepción a propósito: es una página liviana sin instalación, para abrir rápido desde el QR).
 - **Sincronización SSE en Tiempo Real**: Todos los cambios de estado se reflejan en menos de 200ms sin recargar la página.
 - **Normalización de Mesas**: Algoritmo tolerante a fallos que evita la duplicación de identificadores de mesas.
+- **Pedido por QR con confirmación humana**: el cliente arma su carrito desde su propio celular, pero el mesero siempre es quien revisa y lo pasa a cocina — nunca se salta ese paso.

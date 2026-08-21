@@ -118,6 +118,18 @@
         );
       }
 
+      // El pedido "en curso" de una mesa: el más reciente sin pagar. Pedir
+      // algo más durante la misma sentada debe sumarse a ESE pedido como una
+      // ronda nueva (ver agregarRonda) en vez de crear una comanda/ticket
+      // aparte — antes cada envío a una mesa ocupada creaba un pedido nuevo,
+      // duplicando el ticket en cocina y en la pestaña "Pedidos" del mesero.
+      function pedidoActivoDeMesa(mesaId) {
+        const candidatos = Object.entries(state.pedidos)
+          .filter(([, p]) => p && p.mesaId === mesaId && !p.pagado)
+          .sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
+        return candidatos.length ? candidatos[0] : null;
+      }
+
       function setState(patch) {
         Object.assign(state, patch);
         render();
@@ -225,9 +237,11 @@
 
       // Elegir mesa es una selección local, nada más — no escribe en Firebase.
       // Cualquier mesero puede elegir cualquier mesa activa, esté libre u
-      // ocupada. Al elegir una mesa ocupada, el carrito empieza VACÍO para
-      // crear un pedido NUEVO (no se edita el existente automáticamente).
-      // El carrito previo de la mesa actual se guarda antes de cambiar.
+      // ocupada. Al elegir una mesa ocupada, el carrito empieza VACÍO — lo
+      // que se agregue y se envíe se suma como una ronda nueva al pedido en
+      // curso de esa mesa (ver pedidoActivoDeMesa/agregarRonda), no crea un
+      // pedido separado. El carrito previo de la mesa actual se guarda antes
+      // de cambiar.
       function elegirMesa(id) {
         if (!state.mesas[id]) return;
         // Guardar carrito de la mesa actual antes de cambiar
@@ -282,6 +296,17 @@
         if (!p || p.estado !== 'enviado') {
           aviso(
             'Solo se pueden cancelar pedidos que no han sido tomados por cocina',
+          );
+          return;
+        }
+        // Si ya tiene más de una ronda, es porque en algún momento cocina
+        // llegó a tomar la primera (o el cliente ya recibió algo) y luego
+        // se agregó más — cancelar borraría también esa parte ya en curso
+        // o ya servida. En ese caso solo se puede seguir avisando/editando
+        // ronda por ronda, no borrar el pedido entero de un tirón.
+        if (p.rondaActual && p.rondaActual > 1) {
+          aviso(
+            'Este pedido ya tiene más de una ronda — no se puede cancelar entero, solo avisar a cocina',
           );
           return;
         }
@@ -478,6 +503,9 @@
           qty: l.qty,
           precio: ITEM_INDEX[l.id].precio,
           nota: (l.nota || '').trim(),
+          // Se conserva la ronda si ya la traía (ej. viene de editar un
+          // pedido con varias rondas) — ver agruparPorRonda()/agregarRonda().
+          ronda: l.ronda || 1,
         }));
         const totalPedido = lineas.reduce((s, l) => s + l.precio * l.qty, 0);
         const nombreMesa = nombreMesaActual();
@@ -485,7 +513,9 @@
         try {
           if (state.editandoPedidoId) {
             // Verificar que el pedido sigue en estado "enviado" (pudo haber avanzado
-            // mientras el mesero editaba) — si ya no está en "enviado", crear uno nuevo.
+            // mientras el mesero editaba) — si ya no está en "enviado", ya no se puede
+            // sobreescribir en silencio: se suma como ronda nueva al pedido que cocina
+            // ya tiene (nunca se crea un ticket aparte para la misma mesa/sentada).
             const pedidoExistente = state.pedidos[state.editandoPedidoId];
             if (pedidoExistente && pedidoExistente.estado === 'enviado') {
               try {
@@ -506,13 +536,12 @@
                 aviso('No se pudo actualizar — revisa la conexión');
               }
             } else {
-              // Pedido ya fue tomado por cocina, crear uno nuevo en vez de sobreescribir
-              aviso('Cocina ya tomó ese pedido — se creará uno nuevo');
+              aviso('Cocina ya tomó ese pedido — se agrega como ronda nueva');
               state.editandoPedidoId = null;
-              await enviarNuevo(lineas, totalPedido, nombreMesa);
+              await enviarOAgregar(lineas, totalPedido, nombreMesa);
             }
           } else {
-            await enviarNuevo(lineas, totalPedido, nombreMesa);
+            await enviarOAgregar(lineas, totalPedido, nombreMesa);
           }
         } finally {
           // Se resetea siempre (éxito o error) y vía setState — así, aunque
@@ -528,8 +557,90 @@
         }
       }
 
+      // Punto único de salida al enviar: si la mesa ya tiene un pedido en
+      // curso (sin pagar), lo que se manda se SUMA a ese pedido como una
+      // ronda nueva — nunca crea una comanda/ticket aparte para la misma
+      // mesa mientras siga abierta. Si no hay pedido activo, recién ahí se
+      // crea uno (ronda 1). Este es el arreglo al bug reportado: pedir algo
+      // más en la misma mesa ya no duplicaba el pedido ni el ticket.
+      async function enviarOAgregar(lineas, totalPedido, nombreMesa) {
+        const activo = pedidoActivoDeMesa(state.mesaId);
+        if (activo) {
+          await agregarRonda(activo[0], activo[1], lineas);
+        } else {
+          await enviarNuevo(lineas, totalPedido, nombreMesa);
+        }
+      }
+
+      // Agrega una ronda nueva al pedido EXISTENTE de la mesa (mismo ticket,
+      // mismo código) en vez de crear uno aparte. Si cocina ya había
+      // terminado (listo/entregado), el pedido vuelve a "enviado" para que
+      // la ronda nueva reaparezca en la columna de nuevos de panel-cocina;
+      // si sigue en preparación, se queda ahí y cocina la ve aparecer en
+      // vivo dentro del mismo ticket (tsUltimaRonda dispara el aviso sonoro,
+      // ver panel-cocina/app.js). No pasa por "avisar cambio a cocina" —
+      // ese aviso es solo para pedir modificar/quitar algo ya en curso.
+      async function agregarRonda(pedidoId, pedidoExistente, lineasNuevas) {
+        const rondaSiguiente = (pedidoExistente.rondaActual || 1) + 1;
+        const ahora = Date.now();
+        const lineasConRonda = lineasNuevas.map((l) =>
+          Object.assign({}, l, { ronda: rondaSiguiente }),
+        );
+        const lineasCombinadas = (pedidoExistente.lineas || []).concat(
+          lineasConRonda,
+        );
+        const totalCombinado = lineasCombinadas.reduce(
+          (s, l) => s + l.precio * l.qty,
+          0,
+        );
+        const rondas = Object.assign(
+          {},
+          pedidoExistente.rondas || { 1: pedidoExistente.ts },
+          { [rondaSiguiente]: ahora },
+        );
+        const reabrir =
+          pedidoExistente.estado === 'listo' ||
+          pedidoExistente.estado === 'entregado';
+        const patch = {
+          lineas: lineasCombinadas,
+          total: totalCombinado,
+          rondas,
+          rondaActual: rondaSiguiente,
+          tsUltimaRonda: ahora,
+        };
+        if (reabrir) {
+          patch.estado = 'enviado';
+          patch.tsCambio = ahora;
+        }
+        try {
+          await dbUpdate(`/pedidos/${pedidoId}`, patch);
+          limpiarCarritoMesa(state.mesaId);
+          if (solicitudPendiente(state.mesaId)) {
+            dbDelete(`/solicitudes/${state.mesaId}`).catch(() => {});
+          }
+          setState({
+            carrito: [],
+            comandaAbierta: false,
+            tab: 'pedidos',
+            editandoPedidoId: null,
+          });
+          aviso(
+            'Se agregó a la comanda ' +
+              (pedidoExistente.codigo || '') +
+              ' · ' +
+              (pedidoExistente.mesa || ''),
+          );
+        } catch (e) {
+          aviso('No se pudo agregar — revisa la conexión');
+        }
+      }
+
       async function enviarNuevo(lineas, totalPedido, nombreMesa) {
         const codigo = await siguienteCodigo();
+        const ts = Date.now();
+        const lineasRonda1 = lineas.map((l) =>
+          Object.assign({}, l, { ronda: 1 }),
+        );
         const pedido = {
           // "mesa" guarda el NOMBRE (lo que muestran cocina y caja tal cual);
           // "mesaId" es la referencia a /mesas, usada solo para calcular si la
@@ -539,10 +650,13 @@
           mesaId: state.mesaId,
           mesero: state.mesero,
           meseroUsuario: state.perfil ? state.perfil.usuario : '',
-          lineas,
+          lineas: lineasRonda1,
           total: totalPedido,
           estado: 'enviado',
-          ts: Date.now(),
+          ts,
+          rondaActual: 1,
+          rondas: { 1: ts },
+          tsUltimaRonda: ts,
         };
         try {
           await dbPush('/pedidos', pedido);
@@ -564,7 +678,12 @@
         }
       }
 
+      // ids con un marcarServido en curso — un doble toque (o una conexión
+      // lenta) no debe disparar dos peticiones para el mismo pedido.
+      const marcandoServido = new Set();
       async function marcarServido(id) {
+        if (marcandoServido.has(id)) return;
+        marcandoServido.add(id);
         try {
           await dbUpdate(`/pedidos/${id}`, {
             estado: 'entregado',
@@ -572,6 +691,8 @@
           });
         } catch (e) {
           aviso('No se pudo marcar como servido — revisa la conexión');
+        } finally {
+          marcandoServido.delete(id);
         }
       }
 
@@ -787,6 +908,7 @@
     </div>
   </div>`;
       }
+      // agruparPorRonda viene de ../shared/util.js (compartida con panel-cocina).
       function renderPedidos() {
         const mios = Object.entries(state.pedidos)
           .filter(([, p]) => p && p.mesero === state.mesero)
@@ -823,11 +945,27 @@
                   ? `<p style="font-size:11.5px;color:var(--color-neutral-500);margin-top:10px;text-align:center">Aviso enviado — esperando a cocina</p>`
                   : `<button class="btn-servir" style="background:transparent;border:1px solid var(--color-divider);color:var(--color-neutral-700);margin-top:12px" data-avisar="${id}"><span class="material-symbols-outlined">campaign</span>Avisar cambio a cocina</button>`
                 : '';
+            const grupos = agruparPorRonda(p.lineas, p.rondas);
+            const lineasHtml = grupos
+              .map((g) => {
+                const header =
+                  grupos.length > 1
+                    ? `<div class="p-ronda-header${g.ronda > 1 ? ' ronda-sep' : ''}">${g.ronda === 1 ? 'Pedido inicial' : 'Ronda ' + g.ronda}${g.ts ? ' · hace ' + Math.max(0, Math.round((Date.now() - g.ts) / 60000)) + ' min' : ''}</div>`
+                    : '';
+                const lineas = g.lineas
+                  .map(
+                    (l) =>
+                      `<div class="p-linea"><span class="desc">${l.qty}× ${escapeHtml(l.nombre)}${l.nota ? `<span class="nota">${escapeHtml(l.nota)}</span>` : ''}</span><span>${cop(l.precio * l.qty)}</span></div>`,
+                  )
+                  .join('');
+                return header + lineas;
+              })
+              .join('');
             return `<div class="pedido-card ${p.estado === 'listo' ? 'listo' : ''}">
       <div class="p-top"><span class="p-mesa">${escapeHtml(String(p.mesa ?? '—'))}</span><span class="p-badge" style="background:${color}">${escapeHtml(ETIQUETA[p.estado] || p.estado)}</span></div>
       <p class="p-meta">${escapeHtml(p.codigo || id)} · hace ${min} min · ${(p.lineas || []).reduce((n, l) => n + l.qty, 0)} ítems</p>
       <div class="pasos">${pasos.map((nombre, i) => `<div><div class="paso-bar" style="background:${i <= idx ? color : 'var(--color-neutral-300)'}"></div><div class="paso-label" style="color:${i <= idx ? 'var(--color-neutral-800)' : 'var(--color-neutral-500)'}">${nombre}</div></div>`).join('')}</div>
-      <div class="p-lineas">${(p.lineas || []).map((l) => `<div class="p-linea"><span class="desc">${l.qty}× ${escapeHtml(l.nombre)}${l.nota ? `<span class="nota">${escapeHtml(l.nota)}</span>` : ''}</span><span>${cop(l.precio * l.qty)}</span></div>`).join('')}</div>
+      <div class="p-lineas">${lineasHtml}</div>
       <div class="p-total"><span>Total</span><span>${cop(p.total)}</span></div>
       ${p.estado === 'listo' ? `<button class="btn-servir" data-servir="${id}">Marcar servido</button>` : ''}
       ${btnEditar}

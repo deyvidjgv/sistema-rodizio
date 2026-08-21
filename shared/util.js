@@ -39,6 +39,28 @@ function crearBeep(frecuencias) {
   };
 }
 
+// Agrupa las líneas de un pedido por ronda (1 = pedido original, 2+ = se
+// agregó después durante la misma sentada — ver agregarRonda() en
+// mesero-app/app.js) para que mesero-app y panel-cocina puedan mostrar en
+// qué momento se tomó cada parte de la comanda. Los pedidos de antes de que
+// existiera este campo no traen "ronda" en sus líneas: caen todos en el
+// grupo 1, sin romper nada.
+function agruparPorRonda(lineas, rondas) {
+  const grupos = {};
+  (lineas || []).forEach((l) => {
+    const r = l.ronda || 1;
+    (grupos[r] = grupos[r] || []).push(l);
+  });
+  return Object.keys(grupos)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((r) => ({
+      ronda: r,
+      lineas: grupos[r],
+      ts: rondas && rondas[r] ? rondas[r] : null,
+    }));
+}
+
 // Solución para Back-Forward Cache (bfcache):
 // Obliga a recargar la página si se restaura desde el historial del navegador.
 // Esto evita que las apps se queden "congeladas" en la pantalla de verificación

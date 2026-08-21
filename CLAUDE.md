@@ -29,11 +29,15 @@ El SDK de Firebase **sí** se usa, pero solo para Authentication (`shared/auth.j
   mesaId        "mesa-7"                  # id local de la mesa (ver "Mesas" abajo)
   mesero        "Juan Pérez"
   meseroUsuario "juanp"
-  lineas        [{id, nombre, cat, qty, precio, nota}]
+  lineas        [{id, nombre, cat, qty, precio, nota, ronda}]  # ronda: 1, 2, 3… ver "Rondas" abajo
   total         123400
   estado        "enviado" | "preparacion" | "listo" | "entregado"
-  ts            1690000000000             # creación
+  ts            1690000000000             # creación (ronda 1)
   tsCambio      1690000000000             # último cambio de estado (lo pone panel-cocina)
+  rondaActual   1                         # número de la última ronda agregada (1 si nunca se sumó nada)
+  rondas        {"1": 1690000000000}      # ronda -> timestamp en que se agregó, para mostrar "hace X min" por sección
+  tsUltimaRonda 1690000000000             # cambia con cada ronda nueva — dispara el aviso en panel-cocina
+  avisoCambio   {mensaje, mesero, ts}     # opcional — ver "Avisar cambio a cocina" abajo
   pagado        true                      # opcional — lo pone panel-caja al cobrar
   tsPago        1690000000000             # opcional — timestamp del cobro
 
@@ -59,6 +63,10 @@ El SDK de Firebase **sí** se usa, pero solo para Authentication (`shared/auth.j
 **Flujo de un pedido:** mesero envía (`enviado`) → cocina pasa a `preparacion` → `listo` → mesero marca `entregado` → caja confirma el cobro (`pagado: true`, sin tocar `estado`). Las apps escuchan `/pedidos` en vivo por SSE, así que un cambio se ve al instante en todas las pantallas sin refrescar.
 
 **Flujo de un pedido iniciado por el cliente (QR):** el cliente escanea el QR de su mesa → abre `panel-cliente` → arma su carrito, que se guarda en vivo en `/solicitudes/{mesaId}` → toca "Enviar pedido al mesero". Eso **no** crea un pedido ni pasa a cocina — solo le avisa a `mesero-app` (sonido + toast + indicador en la tarjeta de esa mesa) que hay un pedido esperando. El mesero se acerca, revisa el detalle, y toca "Confirmar pedido": recién ahí se carga como comanda normal (`enviado` en `/pedidos`) y se borra `/solicitudes/{mesaId}`. Si el mesero prefiere no usarlo (pedido de prueba, cliente se arrepintió), puede "Descartar" sin crear nada. El cliente nunca manda nada directo a cocina.
+
+**Rondas — pedir más en la misma mesa NO crea un pedido nuevo.** Si el mesero envía una comanda a una mesa que ya tiene un pedido sin pagar (`pedidoActivoDeMesa()` en `mesero-app/app.js`), lo que envía se **suma como una ronda nueva** al pedido existente (`agregarRonda()`) en vez de crear un `/pedidos` aparte — antes sí creaba uno aparte, duplicando el ticket en cocina y en la pestaña "Pedidos" del mesero para la misma mesa/sentada; ver "Para futuras sesiones" más abajo. Cada línea guarda su `ronda` (1 = pedido original), y el pedido guarda `rondas` (timestamp de cuándo se agregó cada una) y `tsUltimaRonda`. Si el pedido ya estaba `listo`/`entregado` cuando se agrega una ronda, vuelve a `estado: "enviado"` para que la parte nueva reaparezca en la columna de nuevos de `panel-cocina` — la parte ya entregada sigue ahí, solo se le suma más. `mesero-app` (pestaña Pedidos) y `panel-cocina` (cada ticket) muestran las líneas agrupadas por ronda con su propio encabezado ("Pedido inicial" / "Ronda 2 · hace X min"), usando `agruparPorRonda()` de `shared/util.js`. Por esto mismo, `cancelarPedido()` (borrar el pedido entero) solo se permite si `rondaActual` sigue en 1 — un pedido con más de una ronda ya tuvo algo en curso o servido, así que no se puede tirar entero.
+
+**"Avisar cambio a cocina" es otra cosa distinta a una ronda.** Ese botón (visible en `mesero-app` mientras el pedido está en `preparacion`/`listo`) es para cuando el cliente quiere **modificar o quitar** algo que ya se está cocinando — cuelga un aviso (`avisoCambio`) visible y sonoro en `panel-cocina` para que se coordinen de viva voz, pero **no** toca `lineas` ni `estado`. Agregar platos nuevos SIEMPRE pasa por el flujo de rondas de arriba (aparece como algo nuevo para preparar), nunca por este aviso.
 
 **División de responsabilidades por panel** (a propósito, no se pisan):
 - `mesero-app`: crea el pedido (`enviado`) y lo marca `entregado` cuando lo sirve. También revisa y confirma (o descarta) las solicitudes de `panel-cliente`.
@@ -122,6 +130,8 @@ Vive todo en `mesero-app`, no hay CRUD de mesas en ningún panel:
 - **No** aplicar `database.rules.json` sin antes hacer lo que ese mismo archivo lista.
 - **No** volver a introducir reserva exclusiva de mesas (dueño / `meseroId` / bloqueo) — se probó y se descartó a propósito.
 - **No** dejar que `panel-cliente` escriba directo en `/pedidos` — el pedido del comensal solo va a `/solicitudes/{mesaId}`; el mesero es siempre quien confirma y lo pasa a cocina. Fue una decisión explícita del dueño del negocio, no un detalle técnico.
+- **No** volver a hacer que enviar una comanda a una mesa ocupada cree un `/pedidos` nuevo — fue un bug real: pedir algo más en la misma mesa duplicaba el ticket en cocina y en la pestaña "Pedidos" del mesero. Tiene que sumarse como ronda nueva al pedido activo de esa mesa (`pedidoActivoDeMesa()`/`agregarRonda()` en `mesero-app/app.js`) — ver sección "Rondas" más arriba.
+- **No** quitar los guards anti-doble-clic (`state.enviando`, y los `Set` de ids "en curso" en `marcarServido`/`marcar`/`confirmarPago`) pensando que son redundantes — sin ellos, un toque doble o una conexión lenta puede disparar la misma escritura dos veces (pedido duplicado, doble PATCH).
 
 ## Cómo crear el primer admin (consola de Firebase)
 

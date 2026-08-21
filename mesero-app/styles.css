@@ -102,6 +102,8 @@ h1,h2,h3,h4{font-family:var(--font-heading);font-weight:400;margin:0}
   .paso-bar{height:6px;border-radius:999px;margin-bottom:4px}
   .paso-label{font-size:9px;letter-spacing:.04em;text-transform:uppercase;text-align:center}
   .p-lineas{border-top:1px dashed var(--color-divider);padding-top:10px;margin-bottom:10px}
+  .p-ronda-header{font-size:10.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px}
+  .p-ronda-header.ronda-sep{margin-top:12px;padding-top:10px;border-top:1px dashed var(--color-divider)}
   .p-linea{display:flex;gap:8px;font-size:13px;padding:3px 0;justify-content:space-between}
   .p-linea .desc{flex:1}
   .p-linea .nota{display:block;font-size:11px;color:var(--color-accent-700)}

@@ -15,14 +15,23 @@
 // fmtCop / crearBeep vienen de ../shared/firebase.js y ../shared/util.js
 
 let pedidos = {};
-let vistos = new Set();
+let marcasVistas = {}; // id -> última "marca" (tsUltimaRonda||ts) ya procesada
 let avisosVistos = {}; // id -> ts del último avisoCambio ya alertado
 let primeraCarga = true;
 let sonidoOn = true;
+let marcandoEstado = new Set(); // ids con un cambio de estado (Empezar/Listo) en curso
 const beep = crearBeep([880, 1180]);
 // Tono distinto (descendente) para no confundir "pedido nuevo" con
 // "el mesero avisa un cambio en algo que ya se está cocinando".
 const beepAviso = crearBeep([740, 494]);
+
+// "Marca" de un pedido: cambia tanto si es un ticket recién creado como si
+// se le agregó una ronda nueva (ver agregarRonda() en mesero-app/app.js) —
+// une ambos casos bajo una sola detección de "hay algo nuevo para cocina",
+// sin importar en qué columna del tablero caiga el ticket.
+function marcaDe(p) {
+  return p.tsUltimaRonda || p.ts;
+}
 
 function minsDesde(ts){ return Math.max(0, Math.round((Date.now() - ts) / 60000)); }
 
@@ -53,10 +62,18 @@ document.getElementById("soundBtn").addEventListener("click", () => {
 });
 
 async function marcar(id, estado) {
+  // Un doble toque (o una conexión lenta) no debe disparar dos peticiones
+  // para el mismo pedido — el botón que lo originó desaparece solo en el
+  // próximo render (el ticket cambia de columna), esto cubre el instante
+  // entre el toque y ese re-render.
+  if (marcandoEstado.has(id)) return;
+  marcandoEstado.add(id);
   try {
     await dbUpdate(`/pedidos/${id}`, { estado, tsCambio: Date.now() });
   } catch (e) {
     alert("No se pudo actualizar el pedido — revisa la conexión e intenta de nuevo.");
+  } finally {
+    marcandoEstado.delete(id);
   }
 }
 
@@ -78,10 +95,22 @@ function linea(l) {
   </div>`;
 }
 
-function ticket(id, p, accion) {
+function ticket(id, p, accion, esNueva) {
   const min = minsDesde(p.ts);
-  const nueva = !vistos.has(id) && !primeraCarga && p.estado === "enviado";
-  const lineasHtml = (p.lineas || []).map(linea).join("");
+  // Ronda 1 = pedido original; 2+ = se agregó después durante la misma
+  // sentada (ver agregarRonda() en mesero-app/app.js) — se separa en
+  // secciones con encabezado para que cocina entienda qué es qué y cuándo
+  // se pidió, en vez de ver todo mezclado en una sola lista.
+  const grupos = agruparPorRonda(p.lineas, p.rondas);
+  const lineasHtml = grupos
+    .map((g) => {
+      const header =
+        grupos.length > 1
+          ? `<div class="t-ronda-header${g.ronda > 1 ? " ronda-sep" : ""}">${g.ronda === 1 ? "Pedido inicial" : "Ronda " + g.ronda}${g.ts ? " · hace " + minsDesde(g.ts) + " min" : ""}</div>`
+          : "";
+      return header + g.lineas.map(linea).join("");
+    })
+    .join("");
   let foot = "";
   if (accion === "prep") foot = `<button class="t-action a-prep" onclick="marcar('${id}','preparacion')">Empezar</button>`;
   else if (accion === "listo") foot = `<button class="t-action a-listo" onclick="marcar('${id}','listo')">Marcar listo</button>`;
@@ -97,7 +126,7 @@ function ticket(id, p, accion) {
     </div>`
     : "";
 
-  return `<div class="ticket ${p.estado}${nueva ? " nueva" : ""}" data-id="${id}">
+  return `<div class="ticket ${p.estado}${esNueva ? " nueva" : ""}" data-id="${id}">
     <div class="t-top">
       <div><div class="t-codigo">${escapeHtml(p.codigo || id)}</div><span class="t-mesa">${escapeHtml(String(p.mesa ?? "—"))}</span></div>
       <div class="t-time ${min >= 15 ? "warn" : ""}">hace ${min} min</div>
@@ -113,19 +142,27 @@ function render() {
   const entries = Object.entries(pedidos).filter(([, p]) => p && p.estado);
   entries.sort((a, b) => (a[1].ts || 0) - (b[1].ts || 0));
 
+  // Qué tickets tienen algo nuevo para preparar desde el último render —
+  // un pedido recién creado O una ronda nueva agregada a uno que cocina ya
+  // tenía (ver marcaDe arriba). Cubre las dos formas en las que puede
+  // aparecer "algo nuevo", sin importar en qué columna caiga el ticket.
+  const nuevos = new Set();
+  entries.forEach(([id, p]) => {
+    if (!primeraCarga && marcasVistas[id] !== marcaDe(p)) nuevos.add(id);
+  });
+
   const enviados = entries.filter(([, p]) => p.estado === "enviado");
   const prep = entries.filter(([, p]) => p.estado === "preparacion");
   const listos = entries.filter(([, p]) => p.estado === "listo");
   const entregados = entries.filter(([, p]) => p.estado === "entregado");
 
-  fill("colEnviado", "cEnviado", enviados, "prep");
-  fill("colPrep", "cPrep", prep, "listo");
-  fill("colListo", "cListo", listos, "espera");
+  fill("colEnviado", "cEnviado", enviados, "prep", nuevos);
+  fill("colPrep", "cPrep", prep, "listo", nuevos);
+  fill("colListo", "cListo", listos, "espera", nuevos);
   fillEntregados(entregados);
   if (window.actualizarBotonInstalarPWA) window.actualizarBotonInstalarPWA();
 
-  const nuevosSinVer = enviados.some(([id]) => !vistos.has(id));
-  if (nuevosSinVer && !primeraCarga && sonidoOn) beep();
+  if (nuevos.size && !primeraCarga && sonidoOn) beep();
 
   // Un aviso "nuevo" es uno cuyo ts no coincide con el último que ya
   // sonamos para ese pedido — así no se repite el sonido en cada re-render
@@ -138,15 +175,15 @@ function render() {
     }
   });
 
-  entries.forEach(([id]) => vistos.add(id));
+  entries.forEach(([id, p]) => { marcasVistas[id] = marcaDe(p); });
   primeraCarga = false;
 }
 
-function fill(colId, countId, list, accion) {
+function fill(colId, countId, list, accion, nuevos) {
   const col = document.getElementById(colId);
   document.getElementById(countId).textContent = list.length;
   col.innerHTML = list.length
-    ? list.map(([id, p]) => ticket(id, p, accion)).join("")
+    ? list.map(([id, p]) => ticket(id, p, accion, nuevos.has(id))).join("")
     : `<div class="empty">Sin comandas aquí por ahora</div>`;
 }
 

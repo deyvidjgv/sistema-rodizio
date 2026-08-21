@@ -54,11 +54,16 @@ document.getElementById("soundBtn").addEventListener("click", () => {
    se toca acá — en mesero-app, "ocupada" se calcula al vuelo mirando
    si queda algún pedido de esa mesa sin pagar, así que en cuanto se
    confirma el último pago, la mesa se ve libre sola. ── */
+const confirmandoPago = new Set(); // ids con un cobro en curso, para no duplicar el toque
 async function confirmarPago(id) {
+  if (confirmandoPago.has(id)) return;
+  confirmandoPago.add(id);
   try {
     await dbUpdate(`/pedidos/${id}`, { pagado: true, tsPago: Date.now() });
   } catch (e) {
     alert("No se pudo confirmar el pago — revisa la conexión e intenta de nuevo.");
+  } finally {
+    confirmandoPago.delete(id);
   }
 }
 

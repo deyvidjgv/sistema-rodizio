@@ -1,7 +1,7 @@
 // Rodizio Caja — service worker: cachea el cascarón de la app para que
 // abra al instante y quede instalable, sin interferir con el streaming
 // en vivo de Firebase (esas peticiones nunca se cachean).
-const CACHE = "rodizio-caja-v9";
+const CACHE = "rodizio-caja-v10";
 const SHELL = [
   "./",
   "./index.html",

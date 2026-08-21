@@ -1,6 +1,6 @@
 // Rodizio — service worker: cachea el cascarón de la app so it opens instantly
 // and keeps working with no signal (e.g. inside the restaurant kitchen area).
-const CACHE = "rodizio-v20";
+const CACHE = "rodizio-v21";
 const SHELL = [
   "./",
   "./index.html",

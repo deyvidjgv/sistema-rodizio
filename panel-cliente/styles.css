@@ -60,7 +60,7 @@ main{flex:1;padding:0 18px 110px;margin-top:-24px;position:relative;z-index:1}
 .plato{display:flex;align-items:center;gap:13px;border-radius:22px;padding:11px 14px 11px 11px;margin-bottom:11px;border:1px solid var(--color-divider);background:var(--color-neutral-100);box-shadow:var(--shadow-sm);animation:rzFadeIn .25s ease both;transition:border-color .15s, background .15s}
 .plato.in{border-color:var(--color-accent-300);background:var(--color-accent-100)}
 .plato-img{width:84px;height:84px;border-radius:17px;flex:none;overflow:hidden;background:var(--color-neutral-200);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px color-mix(in srgb, #000 6%, transparent)}
-.plato-foto{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .3s ease}
+.plato-foto{width:100%;height:100%;object-fit:contain;padding:4px;box-sizing:border-box;display:block;opacity:0;transition:opacity .3s ease}
 .plato-foto.cargada{opacity:1}
 .icon-fallback{display:none;color:var(--color-neutral-500);font-size:28px}
 .plato-img.sin-foto .icon-fallback{display:flex}
@@ -118,7 +118,7 @@ main{flex:1;padding:0 18px 110px;margin-top:-24px;position:relative;z-index:1}
 .detalle-sheet{position:fixed;left:50%;bottom:0;z-index:41;width:min(100%,520px);max-height:92dvh;box-sizing:border-box;overflow-y:auto;transform:translateX(-50%);padding:22px 22px 30px;background:var(--color-bg);border-radius:26px 26px 0 0;box-shadow:var(--shadow-lg);animation:rzDrawerIn .28s cubic-bezier(.32,.72,0,1)}
 .detalle-close{position:absolute;top:14px;right:16px;width:36px;height:36px;border:1px solid var(--color-divider);border-radius:50%;background:rgba(255,255,255,.9);color:var(--color-neutral-700);display:flex;align-items:center;justify-content:center;z-index:1}
 .detalle-img{height:min(48vw,240px);min-height:150px;margin:-22px -22px 18px;background:var(--color-neutral-200);display:flex;align-items:center;justify-content:center;overflow:hidden}
-.detalle-img img{width:100%;height:100%;object-fit:cover;display:block}
+.detalle-img img{width:100%;height:100%;object-fit:contain;padding:10px;box-sizing:border-box;display:block}
 .detalle-img .icon-fallback{display:none;color:var(--color-neutral-500);font-size:48px}
 .detalle-img.sin-foto .icon-fallback{display:flex}
 .detalle-cat{display:inline-block;color:var(--color-accent-700);font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}

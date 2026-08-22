@@ -49,6 +49,10 @@
     return false;
   }
 
+  function esIOS() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent) && !global.MSStream;
+  }
+
   global.actualizarBotonInstalarPWA = function() {
     const btns = document.querySelectorAll(".btn-instalar-pwa");
     btns.forEach(btn => {
@@ -73,6 +77,12 @@
           deferredPrompt = null;
           global.actualizarBotonInstalarPWA();
         };
+      } else if (esIOS()) {
+        btn.style.display = "inline-flex";
+        btn.disabled = false;
+        btn.textContent = "Añadir a inicio";
+        btn.title = "En Safari: Compartir y Añadir a pantalla de inicio";
+        btn.onclick = () => global.mostrarToast("En Safari toca Compartir y luego Añadir a pantalla de inicio", { duracion: 5000 });
       } else {
         btn.style.display = "none";
       }

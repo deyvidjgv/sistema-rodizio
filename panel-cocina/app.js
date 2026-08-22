@@ -15,7 +15,7 @@
 // fmtCop / crearBeep vienen de ../shared/firebase.js y ../shared/util.js
 
 let pedidos = {};
-let marcasVistas = {}; // id -> última "marca" (tsUltimaRonda||ts) ya procesada
+let rondasVistas = new Set(); // "id:ronda" ya vistas alguna vez, para detectar cuáles son nuevas
 let avisosVistos = {}; // id -> ts del último avisoCambio ya alertado
 let primeraCarga = true;
 let sonidoOn = true;
@@ -25,12 +25,40 @@ const beep = crearBeep([880, 1180]);
 // "el mesero avisa un cambio en algo que ya se está cocinando".
 const beepAviso = crearBeep([740, 494]);
 
-// "Marca" de un pedido: cambia tanto si es un ticket recién creado como si
-// se le agregó una ronda nueva (ver agregarRonda() en mesero-app/app.js) —
-// une ambos casos bajo una sola detección de "hay algo nuevo para cocina",
-// sin importar en qué columna del tablero caiga el ticket.
-function marcaDe(p) {
-  return p.tsUltimaRonda || p.ts;
+// Cada ronda PENDIENTE (no "entregado") de un pedido es su propia unidad de
+// tablero — antes cocina veía un solo ticket por pedido, ubicado en la
+// columna de la ronda MENOS avanzada (ver estadoEfectivoTicket en
+// shared/util.js). Eso era un bug real: si la Ronda 1 ya estaba "listo"
+// (esperando al mesero) y llegaba una Ronda 2 nueva, el ticket ENTERO volvía
+// a "Nuevos" y la Ronda 1 lista desaparecía de la columna "Listos" hasta que
+// TODO el pedido quedara listo — además de mezclar en una sola tarjeta
+// rondas ya servidas con la ronda nueva que cocina debía preparar. Ahora
+// cada ronda pendiente vive en su propia tarjeta y columna: un mismo pedido
+// puede tener, por ejemplo, la Ronda 1 en "Listos" y la Ronda 2 en "Nuevos"
+// al mismo tiempo. No se toca pedido.estado/estadoEfectivoTicket — panel-caja
+// sigue dependiendo de que solo llegue a "entregado" cuando TODAS las rondas
+// están servidas.
+function unidadesPendientes(entries) {
+  const unidades = [];
+  entries.forEach(([id, p]) => {
+    const pendientes = agruparPorRonda(p.lineas, p.rondas)
+      .filter((g) => estadoDeRonda(p, g.ronda) !== "entregado");
+    pendientes.forEach((g, i) => {
+      unidades.push({
+        id,
+        p,
+        ronda: g.ronda,
+        estado: estadoDeRonda(p, g.ronda),
+        lineas: g.lineas,
+        ts: g.ts || p.ts,
+        // El aviso manual (avisarCambioCocina) es por pedido, no por ronda —
+        // se muestra una sola vez, en la tarjeta de la ronda pendiente de
+        // número más bajo, para no duplicar el banner si hay 2+ pendientes.
+        esPrimeraPendiente: i === 0,
+      });
+    });
+  });
+  return unidades;
 }
 
 function minsDesde(ts){ return Math.max(0, Math.round((Date.now() - ts) / 60000)); }
@@ -127,47 +155,41 @@ function accionRonda(id, ronda, estadoRonda) {
   return `<span class="t-ronda-badge b-servido"><span class="material-symbols-outlined">check_circle</span>Servido</span>`;
 }
 
-function ticket(id, p, esNueva) {
-  const min = minsDesde(p.ts);
-  const horaExacta = new Date(p.ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
-  // Ronda 1 = pedido original; 2+ = se agregó después durante la misma
-  // sentada (ver agregarRonda() en mesero-app/app.js). Siempre se muestra el
-  // encabezado (aunque haya una sola ronda) porque ahí vive la acción/estado
-  // de esa ronda puntual — ver accionRonda arriba.
-  const grupos = agruparPorRonda(p.lineas, p.rondas);
-  const lineasHtml = grupos
-    .map((g) => {
-      const estadoRonda = estadoDeRonda(p, g.ronda);
-      // Mientras se está preparando, el cronómetro cuenta desde que se tocó
-      // "Empezar" para ESA ronda, no desde que se creó el pedido completo.
-      const inicioPrep = (p.rondaPrepInicio && p.rondaPrepInicio[g.ronda]) || g.ts;
-      const tiempoRonda =
-        estadoRonda === "preparacion" && inicioPrep
-          ? ` · ${minsDesde(inicioPrep)} min preparando`
-          : g.ts
-            ? " · hace " + minsDesde(g.ts) + " min"
-            : "";
-      const header = `<div class="t-ronda-header${g.ronda > 1 ? " ronda-sep" : ""}">
-        <span>${g.ronda === 1 ? "Pedido inicial" : "Ronda " + g.ronda}${tiempoRonda}</span>
-        ${accionRonda(id, g.ronda, estadoRonda)}
-      </div>`;
-      return header + g.lineas.map(linea).join("");
-    })
-    .join("");
+// Pinta UNA ronda pendiente (ver unidadesPendientes arriba) — ya no el
+// pedido completo. Mientras se está preparando, el cronómetro cuenta desde
+// que se tocó "Empezar" para ESTA ronda, no desde que se creó el pedido.
+function ticket(u, esNueva) {
+  const p = u.p;
+  const min = minsDesde(u.ts);
+  const horaExacta = new Date(u.ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+  const inicioPrep = (p.rondaPrepInicio && p.rondaPrepInicio[u.ronda]) || u.ts;
+  const tiempoRonda =
+    u.estado === "preparacion" && inicioPrep
+      ? ` · ${minsDesde(inicioPrep)} min preparando`
+      : u.ts
+        ? " · hace " + minsDesde(u.ts) + " min"
+        : "";
+  const header = `<div class="t-ronda-header">
+    <span>${u.ronda === 1 ? "Pedido inicial" : "Ronda " + u.ronda}${tiempoRonda}</span>
+    ${accionRonda(u.id, u.ronda, u.estado)}
+  </div>`;
+  const lineasHtml = header + u.lineas.map(linea).join("");
 
   // El pedido en sí no se toca — solo un aviso visible de que el mesero
   // quiere coordinar un cambio en persona (ver marcarAvisoVisto arriba).
-  const avisoHtml = p.avisoCambio
+  // Se muestra solo en la ronda pendiente de número más bajo (ver
+  // esPrimeraPendiente en unidadesPendientes) para no duplicarlo.
+  const avisoHtml = p.avisoCambio && u.esPrimeraPendiente
     ? `<div class="t-aviso">
       <span class="material-symbols-outlined">priority_high</span>
       <div class="t-aviso-texto"><b>El mesero avisa un cambio</b>${p.avisoCambio.mensaje ? `<br>${escapeHtml(p.avisoCambio.mensaje)}` : ""}<br><small>${escapeHtml(p.avisoCambio.mesero || "")}</small></div>
-      <button onclick="marcarAvisoVisto('${id}')">Entendido</button>
+      <button onclick="marcarAvisoVisto('${u.id}')">Entendido</button>
     </div>`
     : "";
 
-  return `<div class="ticket ${p.estado}${esNueva ? " nueva" : ""}" data-id="${id}">
+  return `<div class="ticket ${u.estado}${esNueva ? " nueva" : ""}" data-id="${u.id}" data-ronda="${u.ronda}">
     <div class="t-top">
-      <div><div class="t-codigo">${escapeHtml(p.codigo || id)}</div><span class="t-mesa">${escapeHtml(String(p.mesa ?? "—"))}</span></div>
+      <div><div class="t-codigo">${escapeHtml(p.codigo || u.id)}</div><span class="t-mesa">${escapeHtml(String(p.mesa ?? "—"))}</span></div>
       <div class="t-time ${min >= 15 ? "warn" : ""}">${horaExacta} · hace ${min} min</div>
     </div>
     <div class="t-personas">
@@ -179,31 +201,39 @@ function ticket(id, p, esNueva) {
   </div>`;
 }
 
-function render() {
-  const entries = Object.entries(pedidos).filter(([, p]) => p && p.estado);
-  entries.sort((a, b) => (a[1].ts || 0) - (b[1].ts || 0));
+function claveUnidad(u) { return u.id + ":" + u.ronda; }
 
-  // Qué tickets tienen algo nuevo para preparar desde el último render —
-  // un pedido recién creado O una ronda nueva agregada a uno que cocina ya
-  // tenía (ver marcaDe arriba). Cubre las dos formas en las que puede
-  // aparecer "algo nuevo", sin importar en qué columna caiga el ticket.
-  const nuevos = new Set();
-  entries.forEach(([id, p]) => {
-    if (!primeraCarga && marcasVistas[id] !== marcaDe(p)) nuevos.add(id);
+function render() {
+  // "cancelado" no debe verse en el tablero — se excluye acá para que
+  // unidadesPendientes no lo trate como una ronda "enviado" pendiente
+  // (una comanda cancelada se queda para siempre en rondaEstados.1 =
+  // "enviado" porque solo se puede cancelar antes de que cocina la tome).
+  const entries = Object.entries(pedidos).filter(([, p]) => p && p.estado && p.estado !== "cancelado");
+  const unidades = unidadesPendientes(entries);
+  unidades.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+  // Qué rondas son nuevas desde el último render — una ronda siempre nace en
+  // "enviado" (ver agregarRonda()/enviarNuevo() en mesero-app/app.js), así
+  // que basta con detectar la primera vez que se ve esa ronda puntual, sin
+  // importar en qué columna caiga.
+  const nuevas = new Set();
+  unidades.forEach((u) => {
+    const k = claveUnidad(u);
+    if (!primeraCarga && !rondasVistas.has(k)) nuevas.add(k);
   });
 
-  const enviados = entries.filter(([, p]) => p.estado === "enviado");
-  const prep = entries.filter(([, p]) => p.estado === "preparacion");
-  const listos = entries.filter(([, p]) => p.estado === "listo");
+  const enviados = unidades.filter((u) => u.estado === "enviado");
+  const prep = unidades.filter((u) => u.estado === "preparacion");
+  const listos = unidades.filter((u) => u.estado === "listo");
   const entregados = entries.filter(([, p]) => p.estado === "entregado");
 
-  fill("colEnviado", "cEnviado", enviados, nuevos);
-  fill("colPrep", "cPrep", prep, nuevos);
-  fill("colListo", "cListo", listos, nuevos);
+  fill("colEnviado", "cEnviado", enviados, nuevas);
+  fill("colPrep", "cPrep", prep, nuevas);
+  fill("colListo", "cListo", listos, nuevas);
   fillEntregados(entregados);
   if (window.actualizarBotonInstalarPWA) window.actualizarBotonInstalarPWA();
 
-  if (nuevos.size && !primeraCarga && sonidoOn) beep();
+  if (nuevas.size && !primeraCarga && sonidoOn) beep();
 
   // Un aviso "nuevo" es uno cuyo ts no coincide con el último que ya
   // sonamos para ese pedido — así no se repite el sonido en cada re-render
@@ -216,15 +246,15 @@ function render() {
     }
   });
 
-  entries.forEach(([id, p]) => { marcasVistas[id] = marcaDe(p); });
+  unidades.forEach((u) => rondasVistas.add(claveUnidad(u)));
   primeraCarga = false;
 }
 
-function fill(colId, countId, list, nuevos) {
+function fill(colId, countId, list, nuevas) {
   const col = document.getElementById(colId);
   document.getElementById(countId).textContent = list.length;
   col.innerHTML = list.length
-    ? list.map(([id, p]) => ticket(id, p, nuevos.has(id))).join("")
+    ? list.map((u) => ticket(u, nuevas.has(claveUnidad(u)))).join("")
     : `<div class="empty">Sin comandas aquí por ahora</div>`;
 }
 

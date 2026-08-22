@@ -18,12 +18,18 @@
 .kpi-delta.muted{color:var(--color-neutral-500);font-weight:600}
 
 .dash-filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-.dash-filtros select{border:1px solid var(--color-divider);background:var(--color-neutral-100);color:var(--color-neutral-700);border-radius:999px;padding:7px 12px;font-size:12px;font-weight:600;font-family:var(--font-body);max-width:100%}
+.dash-filtros select,.dash-filtros .filtro-codigo{border:1px solid var(--color-divider);background:var(--color-neutral-100);color:var(--color-neutral-700);border-radius:999px;padding:7px 12px;font-size:12px;font-weight:600;font-family:var(--font-body);max-width:100%}
+.dash-filtros .filtro-codigo{min-width:150px;flex:1}
+.dash-filtros .filtro-codigo::placeholder{color:var(--color-neutral-500);font-weight:500}
 
 .dash-charts{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:22px}
 .chart-box{position:relative;height:280px;min-width:0}
 .chart-box.chart-box-pie{height:220px}
 .chart-box canvas{max-width:100%}
+
+.dash-mesas{margin-bottom:22px}
+.dash-mesas h3{font-size:15px;margin:0 0 10px}
+.chart-box.chart-box-mesas{height:280px}
 
 .dash-ranking table{width:100%}
 .dash-ranking .barra-wrap{background:var(--color-neutral-200);border-radius:999px;height:8px;overflow:hidden;min-width:70px}

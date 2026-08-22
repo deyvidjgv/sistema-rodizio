@@ -439,5 +439,29 @@ function bindApp() {
   );
 }
 
+/* ── Aviso de tratamiento de datos (Ley 1581 de 2012 / Decreto 1377 de
+   2013, Colombia) ── panel-cliente es la única app del sistema sin login,
+   así que es la única que le pide un dato personal a alguien que no es
+   empleado (el nombre opcional del cliente, ver clienteNombreInput arriba).
+   Vive FUERA de #app (que render() reemplaza entero en cada cambio de
+   estado) para no desmontarse/remontarse con cada re-render — mismo patrón
+   que el toast de shared/ui.js. Es solo informativo: nunca bloquea el
+   pedido por QR, que debe seguir funcionando sin fricción. */
+function mostrarAvisoDatos() {
+  if (localStorage.getItem('rz_aviso_datos_visto')) return;
+  const el = document.createElement('div');
+  el.className = 'aviso-datos';
+  el.innerHTML = `
+    <p>Si escribes tu nombre, lo usamos solo para identificar tu pedido en cocina — no se comparte con terceros. <a href="privacidad.html" target="_blank" rel="noopener">Más información</a></p>
+    <button id="btnAvisoDatosOk" aria-label="Entendido">Entendido</button>
+  `;
+  document.body.appendChild(el);
+  document.getElementById('btnAvisoDatosOk').onclick = () => {
+    localStorage.setItem('rz_aviso_datos_visto', '1');
+    el.remove();
+  };
+}
+
 render();
 cargarInicial();
+mostrarAvisoDatos();

@@ -19,6 +19,7 @@ let pedidos = {};      // { pushId: {codigo, mesa, mesero, lineas, total, estado
 let vistos = new Set(); // ids ya vistos en "por cobrar", para detectar nuevos y sonar aviso
 let primeraCarga = true;
 let sonidoOn = true;
+let expandidos = new Set(); // ids con el detalle "Ver más" abierto en el historial de cobrados
 const beep = crearBeep([880, 1180]);
 
 function minsDesde(ts){ return Math.max(0, Math.round((Date.now() - ts) / 60000)); }
@@ -143,14 +144,54 @@ function esHoy(ts) {
   const a = new Date(ts), b = new Date();
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
+// Toggle del detalle "Ver más" de una fila del historial — es solo estado de
+// esta pantalla (no toca Firebase), así que re-renderiza directo en vez de
+// pasar por dbUpdate/SSE como el resto de las acciones de este archivo.
+function toggleExpandido(id) {
+  if (expandidos.has(id)) expandidos.delete(id);
+  else expandidos.add(id);
+  render();
+}
+
+// Detalle completo del cobro — todo lo que ya vive en el pedido y la fila
+// resumida no alcanza a mostrar (mismos campos que ve el Excel de caja).
+function detalleCobrado(p) {
+  const fecha = new Date(p.ts || Date.now()).toLocaleDateString("es-CO");
+  const horaEntregado = p.tsCambio ? new Date(p.tsCambio).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—";
+  const horaPago = p.tsPago ? new Date(p.tsPago).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—";
+  const items = (p.lineas || []).map(l =>
+    `<div class="e-detalle-item"><span>${l.qty}× ${escapeHtml(l.nombre)}${l.nota ? ` <em>(${escapeHtml(l.nota)})</em>` : ""}</span><span>${fmtCop((l.precio || 0) * (l.qty || 0))}</span></div>`
+  ).join("");
+  const campos = [
+    ["Mesero", escapeHtml(p.mesero || "—") + (p.meseroUsuario ? " · @" + escapeHtml(p.meseroUsuario) : "")],
+    ["Cajero", escapeHtml(p.cajero || "—") + (p.cajeroUsuario ? " · @" + escapeHtml(p.cajeroUsuario) : "")],
+    ["Método de pago", p.metodoPago === "tarjeta" ? "Tarjeta" : p.metodoPago === "efectivo" ? "Efectivo" : "—"],
+  ];
+  if (p.cliente) campos.push(["Cliente", escapeHtml(p.cliente)]);
+  campos.push(["Fecha", fecha], ["Hora entregado", horaEntregado], ["Hora pago", horaPago]);
+  if (p.rondaActual && p.rondaActual > 1) campos.push(["Rondas", `Pedido con ${p.rondaActual} rondas`]);
+
+  return `<div class="e-detalle">
+    <div class="e-detalle-grid">
+      ${campos.map(([label, valor]) => `<div><span class="e-detalle-label">${label}</span><span>${valor}</span></div>`).join("")}
+    </div>
+    <div class="e-detalle-items">${items}</div>
+  </div>`;
+}
+
 function cobradoRow(id, p) {
   const hora = new Date(p.tsPago || p.tsCambio || p.ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
-  return `<div class="entregado-row" data-id="${id}">
-    <span class="e-codigo">${escapeHtml(p.codigo || id)}</span>
-    <span class="e-mesa">${escapeHtml(String(p.mesa ?? "—"))}</span>
-    <span class="e-mesero">${escapeHtml(p.mesero || "Mesero")}</span>
-    <span class="e-hora">${hora}</span>
-    <span class="e-total">${fmtCop(p.total)}</span>
+  const abierto = expandidos.has(id);
+  return `<div class="entregado-row-wrap">
+    <div class="entregado-row" onclick="toggleExpandido('${id}')">
+      <span class="e-codigo">${escapeHtml(p.codigo || id)}</span>
+      <span class="e-mesa">${escapeHtml(String(p.mesa ?? "—"))}</span>
+      <span class="e-mesero">${escapeHtml(p.mesero || "Mesero")}</span>
+      <span class="e-hora">${hora}</span>
+      <span class="e-total">${fmtCop(p.total)}</span>
+      <span class="e-vermas">${abierto ? "Ver menos ▴" : "Ver más ▾"}</span>
+    </div>
+    ${abierto ? detalleCobrado(p) : ""}
   </div>`;
 }
 function fillCobrados(cobrados) {

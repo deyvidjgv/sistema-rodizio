@@ -27,6 +27,7 @@
 
   let barChart = null;
   let pieChart = null;
+  let mesaChart = null;
 
   function sumTotal(cobrados) { return cobrados.reduce((s, [, p]) => s + (p.total || 0), 0); }
   function mesAnteriorDe(mes) {
@@ -48,6 +49,7 @@
       const filtroCategoria = ref("");
       const filtroMesero = ref("");
       const filtroCajero = ref("");
+      const filtroCodigo = ref("");
 
       escucharSSE("/pedidos", (tipo, evento) => {
         pedidos.value = aplicarEventoSSE(pedidos.value, tipo, evento);
@@ -57,7 +59,7 @@
       // elegido — si se cambia de mes, un mesero/categoría/cajero elegido
       // puede dejar de existir, así que se resetean para no quedar en un
       // filtro "fantasma" que no matchea nada.
-      watch(mesElegido, () => { filtroCategoria.value = ""; filtroMesero.value = ""; filtroCajero.value = ""; });
+      watch(mesElegido, () => { filtroCategoria.value = ""; filtroMesero.value = ""; filtroCajero.value = ""; filtroCodigo.value = ""; });
 
       function cobradosDe(mes) {
         return Object.entries(pedidos.value).filter(([, p]) =>
@@ -102,9 +104,15 @@
             : [id, p]
           )
       );
-      const topPlatos = computed(() =>
-        ventasPorPlato(cobradosRanking.value).sort((a, b) => b.cantidad - a.cantidad).slice(0, 10)
-      );
+      // Buscador por código — filtro propio de esta sección, no un select de
+      // opciones fijas. Mientras hay texto se quita el tope de 10: si no,
+      // no se podría encontrar un plato que no esté entre los más vendidos.
+      const topPlatos = computed(() => {
+        const todas = ventasPorPlato(cobradosRanking.value).sort((a, b) => b.cantidad - a.cantidad);
+        const termino = filtroCodigo.value.trim().toLowerCase();
+        if (!termino) return todas.slice(0, 10);
+        return todas.filter((f) => f.codigo.toLowerCase().includes(termino));
+      });
       const maxCantidad = computed(() => topPlatos.value.reduce((m, f) => Math.max(m, f.cantidad), 0) || 1);
 
       // ── Efectivo/Tarjeta: filtrable por cajero ──
@@ -115,8 +123,25 @@
       const totalEfectivo = computed(() => sumTotal(cobradosPago.value.filter(([, p]) => p.metodoPago === "efectivo")));
       const totalTarjeta = computed(() => sumTotal(cobradosPago.value.filter(([, p]) => p.metodoPago === "tarjeta")));
 
+      // ── Ventas por mesa — dónde se sienta más la gente / qué mesas rotan
+      // más, agrupando por "mesa" (el nombre visible, el mismo campo que ya
+      // usan cocina y caja) — no hay nodo /mesas en Firebase (ver CLAUDE.md),
+      // así que agrupar por nombre es lo mismo que hace el resto del sistema.
+      const ventasPorMesa = computed(() => {
+        const porMesa = {};
+        cobrados.value.forEach(([, p]) => {
+          const mesa = p.mesa || "—";
+          const acc = porMesa[mesa] || { mesa, total: 0, pedidos: 0 };
+          acc.total += p.total || 0;
+          acc.pedidos += 1;
+          porMesa[mesa] = acc;
+        });
+        return Object.values(porMesa).sort((a, b) => b.total - a.total);
+      });
+
       const barCanvas = ref(null);
       const pieCanvas = ref(null);
+      const mesaCanvas = ref(null);
 
       function dibujarBarras() {
         if (!barCanvas.value) return;
@@ -153,9 +178,34 @@
         });
       }
 
-      onMounted(() => { dibujarBarras(); dibujarTorta(); });
+      function dibujarMesas() {
+        if (!mesaCanvas.value) return;
+        const datos = ventasPorMesa.value;
+        const data = {
+          labels: datos.map((d) => d.mesa),
+          datasets: [{ label: "Total vendido", data: datos.map((d) => d.total), backgroundColor: "#4C8C6B", borderRadius: 6 }]
+        };
+        if (mesaChart) { mesaChart.data = data; mesaChart.update(); return; }
+        mesaChart = new Chart(mesaCanvas.value, {
+          type: "bar",
+          data,
+          options: {
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: (ctx) => fmtCop(ctx.parsed.x) + " · " + datos[ctx.dataIndex].pedidos + " pedido(s)" } }
+            },
+            scales: { x: { beginAtZero: true, ticks: { callback: (v) => fmtCop(v) } } }
+          }
+        });
+      }
+
+      onMounted(() => { dibujarBarras(); dibujarTorta(); dibujarMesas(); });
       watch(topPlatos, dibujarBarras);
       watch([totalEfectivo, totalTarjeta], dibujarTorta);
+      watch(ventasPorMesa, dibujarMesas);
 
       // panel-admin/app.js llama a esto al mostrar la pestaña "Reportes"
       // (el div arranca con display:none — Chart.js no calcula bien el
@@ -164,14 +214,16 @@
       window.__dashboardOnShow = () => {
         if (barChart) barChart.resize(); else dibujarBarras();
         if (pieChart) pieChart.resize(); else dibujarTorta();
+        if (mesaChart) mesaChart.resize(); else dibujarMesas();
       };
 
       return {
         mesElegido, pedidosCobrados, totalVendido, totalEfectivo, totalTarjeta,
         totalUnidades, ticketPromedio, topPlatos, maxCantidad, barCanvas, pieCanvas, fmtCop,
         deltaVendido, deltaPedidos, deltaTicket, deltaUnidades,
-        filtroCategoria, filtroMesero, filtroCajero,
-        categoriasDisponibles, merosDisponibles, cajerosDisponibles
+        filtroCategoria, filtroMesero, filtroCajero, filtroCodigo,
+        categoriasDisponibles, merosDisponibles, cajerosDisponibles,
+        ventasPorMesa, mesaCanvas
       };
     },
     template: `
@@ -219,6 +271,7 @@
                 <option value="">Todos los meseros</option>
                 <option v-for="m in merosDisponibles" :key="m" :value="m">{{ m }}</option>
               </select>
+              <input type="text" class="filtro-codigo" v-model="filtroCodigo" placeholder="Buscar por código…" title="Buscar plato por código">
             </div>
             <div class="chart-box"><canvas ref="barCanvas"></canvas></div>
           </div>
@@ -231,6 +284,12 @@
             </div>
             <div class="chart-box chart-box-pie"><canvas ref="pieCanvas"></canvas></div>
           </div>
+        </div>
+
+        <div class="dash-mesas">
+          <h3>Ventas por mesa</h3>
+          <div class="chart-box chart-box-mesas"><canvas ref="mesaCanvas"></canvas></div>
+          <p class="sub" v-if="!ventasPorMesa.length">No hay pedidos cobrados en el mes elegido.</p>
         </div>
 
         <div class="dash-ranking" v-if="topPlatos.length">

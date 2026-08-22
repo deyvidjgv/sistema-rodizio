@@ -167,8 +167,10 @@ Vive todo en `mesero-app`, no hay CRUD de mesas en ningún panel:
 
 ## Despliegue
 
-**Firebase Hosting**, sitio `rodizio` dentro del proyecto `rodizio-eb49a` (mismo proyecto que RTDB y Authentication). Deploy: `firebase deploy --only hosting:rodizio` → publica en `https://rodizio.web.app`.
+**Firebase Hosting**, sitio `rodiziocucuta21` dentro del proyecto `rodizio-eb49a` (mismo proyecto que RTDB y Authentication). Deploy: `firebase deploy --only hosting` → publica en `https://rodiziocucuta21.web.app`.
 
-Antes del primer deploy en una máquina nueva: `firebase use --add` y seleccionar `rodizio-eb49a` (el repo no versiona `.firebaserc`).
+Antes del primer deploy en una máquina nueva: `firebase use --add` y seleccionar `rodizio-eb49a` (el repo no versiona `.firebaserc`). La cuenta de Google que administra este proyecto es `rodizio895@gmail.com` — si el login de Firebase CLI está con otra cuenta, `firebase login --reauth` para cambiar.
 
 **Nota histórica:** el proyecto original (`rodizio-cucuta-08`) fue suspendido por Google Cloud Platform el 11 ago 2026, muy probablemente por abuso de terceros aprovechando las reglas de RTDB abiertas (limitación #1). Se migró todo a `rodizio-eb49a`. Si el viejo se reactiva, **no volver a usarlo** sin cerrar las reglas primero — la vulnerabilidad sigue sin corregir también en el nuevo.
+
+**Nota sobre el nombre del sitio:** originalmente se documentó como sitio `rodizio` (`rodizio.web.app`), pero ese nombre (y variantes como `rodizio-cucuta`) quedaron reservados globalmente por el proyecto viejo suspendido — Firebase no libera los nombres de sitio aunque el proyecto esté suspendido. Se creó `rodiziocucuta21` como sitio nuevo el 2026-08-21. Si más adelante se quiere una URL más prolija para vender el producto, la solución es conectar un dominio propio (no depender de que un `.web.app` lindo esté libre).

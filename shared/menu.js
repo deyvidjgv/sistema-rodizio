@@ -1183,30 +1183,46 @@
         },
       ];
       const SUGERENCIAS = {
-        Entradas: ['Sin cebolla', 'Sin picante', 'Para compartir'],
+        Entradas: ['Salsa aparte', 'Sin picante', 'Para compartir'],
         'Para Compartir': ['Extra salsa', 'Sin picante', 'Para compartir'],
-        'De la Parrilla': [
-          'Término medio',
-          'Bien asado',
-          'Sin sal',
-          'Poco grasa',
-        ],
-        'Angus Beef': ['Término medio', 'Bien asado', 'Poco grasa'],
-        'Burger Angus': [
-          'Sin cebolla',
-          'Extra queso',
-          'Papas aparte',
-          'Término de la carne',
-        ],
+        'De la Parrilla': ['Término medio', 'Bien asado', 'Salsa aparte'],
+        'Angus Beef': ['Término medio', 'Bien asado', 'Salsa aparte'],
+        'Burger Angus': ['Sin cebolla', 'Extra queso', 'Papas aparte'],
         'De la Casa': ['Sin picante', 'Salsa aparte', 'Poca sal'],
-        'Del Mar': ['Sin picante', 'Salsa aparte'],
-        'Menú Infantil': ['Sin salsa', 'Papas extra'],
-        Postres: ['Sin crema', 'Al final de la mesa'],
-        Bebidas: ['Sin hielo', 'Bien fría', 'Sin azúcar'],
-        'Cervezas 3 Cordilleras': ['Bien fría', 'Sin vaso'],
-        Mocktails: ['Sin hielo', 'Bien frío'],
-        Cocteles: ['Sin hielo', 'Doble', 'Menos dulce'],
+        'Del Mar': ['Sin picante', 'Salsa aparte', 'Limón aparte'],
+        'Menú Infantil': ['Sin salsa', 'Papas extra', 'Sin picante'],
+        Postres: ['Sin crema', 'Salsa aparte', 'Para compartir'],
+        Bebidas: ['Sin hielo', 'Sin azúcar', 'Leche aparte'],
+        'Cervezas 3 Cordilleras': ['Bien fría', 'Sin vaso', 'Vaso aparte'],
+        Mocktails: ['Sin hielo', 'Menos dulce', 'Sin azúcar'],
+        Cocteles: ['Sin hielo', 'Menos dulce', 'Sin alcohol'],
         Licores: ['Con hielo', 'Solo', 'Con soda'],
-        Vinos: ['Bien frío', 'Temperatura ambiente'],
-        Champagnes: ['Bien frío'],
+        Vinos: ['Bien frío', 'Temperatura ambiente', 'Copas aparte'],
+        Champagnes: ['Bien frío', 'Copas aparte', 'Para compartir'],
       };
+
+      const SUGERENCIAS_POR_PRODUCTO = {
+        'ENT-01': ['Con pollo', 'Con champiñones', 'Sin picante'],
+        'ENT-03': ['Salsa golf', 'Salsa roja', 'Sin picante'],
+        'ENT-04': ['Sin tomate', 'Sin aguacate', 'Salsa aparte'],
+        'COM-07': ['Salsa BBQ', 'Salsa miel-mostaza', 'Menos picante'],
+        'PAR-08': ['Salsa BBQ', 'Salsa ahumada', 'Salsa aparte'],
+        'CAS-01': ['Salsa aparte', 'Sin picante', 'Poca sal'],
+        'MAR-01': ['Limón aparte', 'Salsa aparte', 'Sin picante'],
+      };
+
+      function sugerenciasParaItem(item) {
+        if (!item) return [];
+        if (SUGERENCIAS_POR_PRODUCTO[item.id]) return SUGERENCIAS_POR_PRODUCTO[item.id];
+        const texto = `${item.nombre} ${item.desc}`.toLowerCase();
+        if (/cafe|café|chocolate|te |té |infusion|infusión/.test(texto)) {
+          return ['Sin azúcar', 'Leche aparte', 'Bien caliente'];
+        }
+        if (/res|churrasco|lomo|bife|punta de anca|baby beef|carne/.test(texto)) {
+          return ['Término medio', 'Bien asado', 'Salsa aparte'];
+        }
+        if (/pollo|cerdo|chicharron|chicharrón|morcilla|chorizo/.test(texto)) {
+          return ['Bien asado', 'Salsa aparte', 'Poca sal'];
+        }
+        return (SUGERENCIAS[item.cat] || []).slice(0, 3);
+      }

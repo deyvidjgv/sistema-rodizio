@@ -41,6 +41,7 @@ const state = {
   busqueda: '',
   carrito: [], // [{id, qty, nota}]
   carritoAbierto: false,
+  productoAbierto: null,
   enviado: false,
   clienteNombre: '', // opcional — viaja con la solicitud para que cocina sepa a nombre de quién es
 };
@@ -159,6 +160,23 @@ function setNota(id, nota) {
   persistir();
 }
 
+function notaPartes(nota) {
+  return String(nota || '')
+    .split(' · ')
+    .map((parte) => parte.trim())
+    .filter(Boolean);
+}
+
+function alternarSugerencia(id, sugerencia) {
+  const linea = state.carrito.find((l) => l.id === id);
+  if (!linea) return;
+  const partes = notaPartes(linea.nota);
+  const indice = partes.indexOf(sugerencia);
+  if (indice === -1) partes.unshift(sugerencia);
+  else partes.splice(indice, 1);
+  setNota(id, partes.join(' · '));
+}
+
 async function enviarPedido() {
   if (!state.carrito.length) return;
   const btn = document.getElementById('btnEnviarPedido');
@@ -241,6 +259,7 @@ function renderApp() {
   <main>${renderMenu()}</main>
   ${state.carrito.length && !state.carritoAbierto ? renderCartBar() : ''}
   ${renderDrawer()}
+  ${renderProductoDetalle()}
   `;
 }
 
@@ -305,7 +324,7 @@ function renderMenu() {
     .map((it, idx) => {
       const q = enCarrito[it.id] || 0;
       const foto = it.img
-        ? `<img class="plato-foto" src="${escapeHtml(it.img)}" alt="" loading="lazy" onload="this.classList.add('cargada')" onerror="this.remove();this.parentElement.classList.add('sin-foto')">`
+        ? `<img class="plato-foto" src="${escapeHtml(it.img)}" alt="${escapeHtml(it.nombre)}" loading="lazy" onload="this.classList.add('cargada')" onerror="this.parentElement.classList.add('sin-foto');this.remove()">`
         : '';
       const delay = Math.min(idx, 8) * 30;
       return `<div class="plato ${q > 0 ? 'in' : ''}" style="animation-delay:${delay}ms">
@@ -313,6 +332,7 @@ function renderMenu() {
       <div class="plato-info">
         ${it.catLabel ? `<span class="plato-cat">${escapeHtml(it.catLabel)}</span>` : ''}
         <b>${escapeHtml(it.nombre)}</b><small>${escapeHtml(it.desc)}</small><span class="precio">${cop(it.precio)}</span>
+        <button class="ver-detalle" data-detalle="${it.id}">Ver detalle</button>
       </div>
       <div class="stepper">
         ${q > 0 ? `<button data-quitar="${it.id}">–</button><span class="qty">${q}</span>` : ''}
@@ -321,6 +341,37 @@ function renderMenu() {
     </div>`;
     })
     .join('')}`;
+}
+
+function renderProductoDetalle() {
+  const it = state.productoAbierto && ITEM_INDEX[state.productoAbierto];
+  if (!it) return '';
+  const linea = state.carrito.find((l) => l.id === it.id);
+  const nota = linea ? linea.nota || '' : '';
+  const sugerencias = sugerenciasParaItem(it);
+  const foto = it.img
+    ? `<img src="${escapeHtml(it.img)}" alt="${escapeHtml(it.nombre)}" onerror="this.parentElement.classList.add('sin-foto');this.remove()">`
+    : '';
+  return `
+  <div class="detalle-backdrop" id="detalleBackdrop"></div>
+  <section class="detalle-sheet" role="dialog" aria-modal="true" aria-labelledby="detalleTitulo">
+    <button class="detalle-close" id="btnCerrarDetalle" aria-label="Cerrar detalle"><span class="material-symbols-outlined">close</span></button>
+    <div class="detalle-img${it.img ? '' : ' sin-foto'}">${foto}<span class="material-symbols-outlined icon-fallback">restaurant</span></div>
+    <span class="detalle-cat">${escapeHtml(it.cat)}</span>
+    <h2 id="detalleTitulo">${escapeHtml(it.nombre)}</h2>
+    <p class="detalle-desc">${escapeHtml(it.desc)}</p>
+    <strong class="detalle-precio">${cop(it.precio)}</strong>
+    <div class="detalle-nota">
+      <h3>Personaliza tu pedido</h3>
+      ${sugerencias.length ? `<div class="sug detalle-sug">${sugerencias.map((t) => `<button class="${notaPartes(nota).includes(t) ? 'on' : ''}" data-detalle-nota="${it.id}" data-texto="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}</div>` : ''}
+      <input class="nota-input" id="detalleNota" placeholder="Otra indicación (opcional)" value="${escapeHtml(nota)}">
+    </div>
+    <div class="detalle-actions">
+      <button class="detalle-qty" data-quitar="${it.id}" ${linea ? '' : 'disabled'}>−</button>
+      <span>${linea ? linea.qty : 0}</span>
+      <button class="detalle-qty add" data-agregar="${it.id}">+</button>
+    </div>
+  </section>`;
 }
 
 function renderCartBar() {
@@ -334,14 +385,14 @@ function renderDrawer() {
     state.carrito
       .map((l) => {
         const it = ITEM_INDEX[l.id];
-        const sug = SUGERENCIAS[it.cat] || [];
+        const sug = sugerenciasParaItem(it);
         return `<div class="linea-row">
       <div class="linea-top">
         <b>${escapeHtml(it.nombre)}</b>
         <div class="stepper"><button data-quitar="${it.id}">–</button><span class="qty">${l.qty}</span><button class="add" data-agregar="${it.id}">+</button></div>
         <span class="sub">${cop(it.precio * l.qty)}</span>
       </div>
-      ${sug.length ? `<div class="sug">${sug.map((t) => `<button class="${(l.nota || '').trim() === t ? 'on' : ''}" data-nota-chip="${it.id}" data-texto="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}</div>` : ''}
+      ${sug.length ? `<div class="sug">${sug.map((t) => `<button class="${notaPartes(l.nota).includes(t) ? 'on' : ''}" data-nota-chip="${it.id}" data-texto="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}</div>` : ''}
       <input class="nota-input" placeholder="Nota para cocina (opcional)" data-nota="${it.id}" value="${escapeHtml(l.nota || '')}">
     </div>`;
       })
@@ -394,6 +445,22 @@ function bindApp() {
   document
     .querySelectorAll('[data-quitar]')
     .forEach((b) => (b.onclick = () => cambiar(b.dataset.quitar, -1)));
+  document.querySelectorAll('[data-detalle]').forEach(
+    (b) => (b.onclick = () => setState({ productoAbierto: b.dataset.detalle })),
+  );
+  const cerrarDetalle = () => setState({ productoAbierto: null });
+  const btnCerrarDetalle = document.getElementById('btnCerrarDetalle');
+  if (btnCerrarDetalle) btnCerrarDetalle.onclick = cerrarDetalle;
+  const detalleBackdrop = document.getElementById('detalleBackdrop');
+  if (detalleBackdrop) detalleBackdrop.onclick = cerrarDetalle;
+  const detalleNota = document.getElementById('detalleNota');
+  if (detalleNota)
+    detalleNota.oninput = (e) => setNota(state.productoAbierto, e.target.value);
+  document.querySelectorAll('[data-detalle-nota]').forEach(
+    (b) =>
+      (b.onclick = () =>
+        alternarSugerencia(b.dataset.detalleNota, b.dataset.texto)),
+  );
 
   const abrir = document.getElementById('btnAbrirCarrito');
   if (abrir) abrir.onclick = () => setState({ carritoAbierto: true });
@@ -432,9 +499,7 @@ function bindApp() {
   document.querySelectorAll('[data-nota-chip]').forEach(
     (b) =>
       (b.onclick = () => {
-        const actual =
-          (state.carrito.find((l) => l.id === b.dataset.notaChip) || {}).nota || '';
-        setNota(b.dataset.notaChip, actual.trim() === b.dataset.texto ? '' : b.dataset.texto);
+        alternarSugerencia(b.dataset.notaChip, b.dataset.texto);
       }),
   );
 }

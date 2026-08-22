@@ -42,6 +42,7 @@ const state = {
   carrito: [], // [{id, qty, nota}]
   carritoAbierto: false,
   enviado: false,
+  clienteNombre: '', // opcional — viaja con la solicitud para que cocina sepa a nombre de quién es
 };
 
 // Timestamp de nuestra propia última escritura — para no reprocesar
@@ -90,6 +91,7 @@ function persistir(inmediato) {
     dbSet(`/solicitudes/${mesaId}`, {
       lineas: lineasActuales(),
       mesa: nombreMesa,
+      cliente: state.clienteNombre.trim(),
       actualizado,
     }).catch(() => {});
   };
@@ -109,7 +111,10 @@ function conectarSolicitud() {
     // Ignorar el eco de nuestra propia escritura — ya tenemos ese estado local.
     if (solicitud.actualizado && solicitud.actualizado === ultimoEnviadoTs) return;
     if (state.enviado) return;
-    setState({ carrito: carritoDesdeLineas(solicitud.lineas) });
+    setState({
+      carrito: carritoDesdeLineas(solicitud.lineas),
+      clienteNombre: solicitud.cliente || state.clienteNombre,
+    });
   });
 }
 
@@ -120,7 +125,11 @@ async function cargarInicial() {
   }
   try {
     const solicitud = await dbGet(`/solicitudes/${mesaId}`);
-    setState({ cargando: false, carrito: carritoDesdeLineas(solicitud && solicitud.lineas) });
+    setState({
+      cargando: false,
+      carrito: carritoDesdeLineas(solicitud && solicitud.lineas),
+      clienteNombre: (solicitud && solicitud.cliente) || '',
+    });
   } catch (e) {
     setState({ cargando: false });
   }
@@ -162,14 +171,56 @@ async function enviarPedido() {
   aviso('Pedido enviado — el mesero lo va a confirmar', { icono: 'restaurant' });
 }
 
+/* ═══════════ Animaciones que no se pueden expresar solo con CSS ═══════════
+   render() reemplaza el DOM entero (innerHTML) en cada cambio de estado, así
+   que nunca hay una transición real "antes → después" sobre el mismo nodo.
+   Estas dos comparan el valor anterior contra el actual y agregan la clase
+   de animación a mano solo cuando de verdad cambió algo. */
+let unidadesCartAnterior = null;
+let drawerAbiertoPrev = false;
+
+function flotarMasUno(btn) {
+  const rect = btn.getBoundingClientRect();
+  const el = document.createElement('span');
+  el.className = 'float-plus';
+  el.textContent = '+1';
+  el.style.left = rect.left + rect.width / 2 + 'px';
+  el.style.top = rect.top + 'px';
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove(), { once: true });
+}
+
+function sincronizarBumpCarrito() {
+  const bar = document.getElementById('btnAbrirCarrito');
+  const unidades = state.carrito.reduce((n, l) => n + l.qty, 0);
+  if (bar && unidadesCartAnterior !== null && unidades !== unidadesCartAnterior) {
+    bar.classList.add('bump');
+  }
+  unidadesCartAnterior = unidades;
+}
+
+function sincronizarAnimDrawer() {
+  const drawer = document.querySelector('.drawer');
+  const backdrop = document.getElementById('backdrop');
+  if (drawer && backdrop) {
+    if (state.carritoAbierto && !drawerAbiertoPrev) {
+      drawer.classList.add('anim-in');
+      backdrop.classList.add('anim-in');
+    } else if (!state.carritoAbierto && drawerAbiertoPrev) {
+      drawer.classList.add('anim-out');
+      backdrop.classList.add('anim-out');
+    }
+  }
+  drawerAbiertoPrev = state.carritoAbierto;
+}
+
 /* ═══════════ RENDER ═══════════ */
 function render() {
   const el = document.getElementById('app');
   el.innerHTML = renderApp();
   bindApp();
-  if (state.toast) {
-    // El toast global lo maneja shared/ui.js (mostrarToast), no hace falta acá.
-  }
+  sincronizarBumpCarrito();
+  sincronizarAnimDrawer();
 }
 
 function renderApp() {
@@ -251,12 +302,13 @@ function renderMenu() {
   ${!buscando ? `<div class="cats">${CATS.map((c) => `<button class="cat-pill ${c === state.cat ? 'on' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}</div>` : ''}
   ${items.length === 0 && buscando ? '<div class="empty-state" style="padding:30px 0"><p>No se encontraron productos con "' + escapeHtml(state.busqueda) + '"</p></div>' : ''}
   ${items
-    .map((it) => {
+    .map((it, idx) => {
       const q = enCarrito[it.id] || 0;
       const foto = it.img
-        ? `<img class="plato-foto" src="${escapeHtml(it.img)}" alt="" loading="lazy" onerror="this.remove();this.parentElement.classList.add('sin-foto')">`
+        ? `<img class="plato-foto" src="${escapeHtml(it.img)}" alt="" loading="lazy" onload="this.classList.add('cargada')" onerror="this.remove();this.parentElement.classList.add('sin-foto')">`
         : '';
-      return `<div class="plato ${q > 0 ? 'in' : ''}">
+      const delay = Math.min(idx, 8) * 30;
+      return `<div class="plato ${q > 0 ? 'in' : ''}" style="animation-delay:${delay}ms">
       <div class="plato-img${it.img ? '' : ' sin-foto'}">${foto}<span class="material-symbols-outlined icon-fallback">restaurant</span></div>
       <div class="plato-info">
         ${it.catLabel ? `<span class="plato-cat">${escapeHtml(it.catLabel)}</span>` : ''}
@@ -299,7 +351,10 @@ function renderDrawer() {
   <div class="backdrop ${abierta ? 'show' : ''}" id="backdrop"></div>
   <div class="drawer ${abierta ? 'show' : ''}">
     <div class="drawer-head"><h3>Tu pedido · ${escapeHtml(nombreMesa)}</h3><button class="drawer-close" id="btnCerrarDrawer"><span class="material-symbols-outlined">close</span></button></div>
-    <div class="drawer-body">${lineas}</div>
+    <div class="drawer-body">
+      <input class="nombre-input" id="clienteNombreInput" placeholder="Tu nombre (opcional)" value="${escapeHtml(state.clienteNombre)}">
+      ${lineas}
+    </div>
     <div class="drawer-foot">
       <div class="drawer-total"><span>Total</span><span>${cop(total())}</span></div>
       <div class="drawer-actions">
@@ -329,9 +384,13 @@ function bindApp() {
   document
     .querySelectorAll('[data-cat]')
     .forEach((b) => (b.onclick = () => setState({ cat: b.dataset.cat, busqueda: '' })));
-  document
-    .querySelectorAll('[data-agregar]')
-    .forEach((b) => (b.onclick = () => cambiar(b.dataset.agregar, 1)));
+  document.querySelectorAll('[data-agregar]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        flotarMasUno(b);
+        cambiar(b.dataset.agregar, 1);
+      }),
+  );
   document
     .querySelectorAll('[data-quitar]')
     .forEach((b) => (b.onclick = () => cambiar(b.dataset.quitar, -1)));
@@ -350,6 +409,15 @@ function bindApp() {
     };
   const btnEnviar = document.getElementById('btnEnviarPedido');
   if (btnEnviar) btnEnviar.onclick = enviarPedido;
+
+  // Igual que las notas: se escribe sin re-renderizar en cada tecla, para
+  // no perder el foco del teclado en móvil.
+  const nombreInput = document.getElementById('clienteNombreInput');
+  if (nombreInput)
+    nombreInput.oninput = (e) => {
+      state.clienteNombre = e.target.value;
+      persistir();
+    };
 
   // Igual que en mesero-app: la nota se escribe sin re-renderizar en cada
   // tecla, para no perder el foco del teclado en móvil.

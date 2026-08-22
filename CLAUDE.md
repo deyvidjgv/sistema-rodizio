@@ -29,22 +29,32 @@ El SDK de Firebase **sí** se usa, pero solo para Authentication (`shared/auth.j
   mesaId        "mesa-7"                  # id local de la mesa (ver "Mesas" abajo)
   mesero        "Juan Pérez"
   meseroUsuario "juanp"
+  cliente       "María"                   # opcional — solo si el pedido vino de una solicitud confirmada (ver panel-cliente); si falta, panel-cocina muestra el nombre del mesero en su lugar
   lineas        [{id, nombre, cat, qty, precio, nota, ronda}]  # ronda: 1, 2, 3… ver "Rondas" abajo
   total         123400
-  estado        "enviado" | "preparacion" | "listo" | "entregado"
+  estado        "enviado" | "preparacion" | "listo" | "entregado" | "cancelado"   # RESUMEN calculado (salvo "cancelado"), ver "Estado por ronda" abajo — no se edita a mano, se recalcula en cada cambio
   ts            1690000000000             # creación (ronda 1)
-  tsCambio      1690000000000             # último cambio de estado (lo pone panel-cocina)
+  tsCambio      1690000000000             # último cambio de estado de cualquier ronda (lo pone panel-cocina o mesero-app)
   rondaActual   1                         # número de la última ronda agregada (1 si nunca se sumó nada)
   rondas        {"1": 1690000000000}      # ronda -> timestamp en que se agregó, para mostrar "hace X min" por sección
+  rondaEstados  {"1": "listo", "2": "enviado"}   # estado de CADA ronda por separado — ver "Estado por ronda" abajo
+  rondaPrepInicio {"2": 1690000000000}    # opcional — ronda -> timestamp de cuándo se tocó "Empezar" para esa ronda, para su cronómetro individual
   tsUltimaRonda 1690000000000             # cambia con cada ronda nueva — dispara el aviso en panel-cocina
   avisoCambio   {mensaje, mesero, ts}     # opcional — ver "Avisar cambio a cocina" abajo
   pagado        true                      # opcional — lo pone panel-caja al cobrar
   tsPago        1690000000000             # opcional — timestamp del cobro
+  metodoPago    "efectivo" | "tarjeta"    # opcional — lo pone panel-caja al cobrar
+  cajero        "Laura Gómez"             # opcional — quién confirmó el cobro (mismo patrón que mesero/meseroUsuario)
+  cajeroUsuario "laurag"                  # opcional
+  canceladoPor  "Juan Pérez"              # opcional — solo si estado === "cancelado"; quién lo canceló (mesero-app)
+  tsCancelado   1690000000000             # opcional — timestamp de la cancelación
+  motivoCancelacion "Cliente se arrepintió"  # opcional — texto libre, lo pide un prompt() al cancelar
 
 /solicitudes/{mesaId}          # carrito pendiente de un cliente vía QR, ver panel-cliente
   lineas        [{id, nombre, cat, qty, precio, nota}]   # mismo shape que pedidos.lineas
   mesa          "Mesa 7"                  # nombre visible, para que mesero-app pueda
                                            # registrar la mesa aunque no la conociera aún
+  cliente       ""                        # opcional — nombre que el cliente escribe al armar el carrito; viaja a pedidos.cliente si el mesero confirma
   actualizado   1690000000000
 
 /contadores/{YYYY-MM-DD}
@@ -64,7 +74,18 @@ El SDK de Firebase **sí** se usa, pero solo para Authentication (`shared/auth.j
 
 **Flujo de un pedido iniciado por el cliente (QR):** el cliente escanea el QR de su mesa → abre `panel-cliente` → arma su carrito, que se guarda en vivo en `/solicitudes/{mesaId}` → toca "Enviar pedido al mesero". Eso **no** crea un pedido ni pasa a cocina — solo le avisa a `mesero-app` (sonido + toast + indicador en la tarjeta de esa mesa) que hay un pedido esperando. El mesero se acerca, revisa el detalle, y toca "Confirmar pedido": recién ahí se carga como comanda normal (`enviado` en `/pedidos`) y se borra `/solicitudes/{mesaId}`. Si el mesero prefiere no usarlo (pedido de prueba, cliente se arrepintió), puede "Descartar" sin crear nada. El cliente nunca manda nada directo a cocina.
 
-**Rondas — pedir más en la misma mesa NO crea un pedido nuevo.** Si el mesero envía una comanda a una mesa que ya tiene un pedido sin pagar (`pedidoActivoDeMesa()` en `mesero-app/app.js`), lo que envía se **suma como una ronda nueva** al pedido existente (`agregarRonda()`) en vez de crear un `/pedidos` aparte — antes sí creaba uno aparte, duplicando el ticket en cocina y en la pestaña "Pedidos" del mesero para la misma mesa/sentada; ver "Para futuras sesiones" más abajo. Cada línea guarda su `ronda` (1 = pedido original), y el pedido guarda `rondas` (timestamp de cuándo se agregó cada una) y `tsUltimaRonda`. Si el pedido ya estaba `listo`/`entregado` cuando se agrega una ronda, vuelve a `estado: "enviado"` para que la parte nueva reaparezca en la columna de nuevos de `panel-cocina` — la parte ya entregada sigue ahí, solo se le suma más. `mesero-app` (pestaña Pedidos) y `panel-cocina` (cada ticket) muestran las líneas agrupadas por ronda con su propio encabezado ("Pedido inicial" / "Ronda 2 · hace X min"), usando `agruparPorRonda()` de `shared/util.js`. Por esto mismo, `cancelarPedido()` (borrar el pedido entero) solo se permite si `rondaActual` sigue en 1 — un pedido con más de una ronda ya tuvo algo en curso o servido, así que no se puede tirar entero.
+Al armar el carrito, `panel-cliente` deja escribir un nombre opcional (`solicitudes.cliente`) que viaja al pedido si el mesero confirma. Ese nombre es lo que `panel-cocina` muestra en el ticket junto al mesero — si el mesero cargó la comanda directo (sin pasar por el QR) no hay nombre de cliente, y el ticket muestra el nombre del mesero también en ese lugar en vez de dejarlo vacío.
+
+**Rondas — pedir más en la misma mesa NO crea un pedido nuevo.** Si el mesero envía una comanda a una mesa que ya tiene un pedido sin pagar (`pedidoActivoDeMesa()` en `mesero-app/app.js`), lo que envía se **suma como una ronda nueva** al pedido existente (`agregarRonda()`) en vez de crear un `/pedidos` aparte — antes sí creaba uno aparte, duplicando el ticket en cocina y en la pestaña "Pedidos" del mesero para la misma mesa/sentada; ver "Para futuras sesiones" más abajo. Cada línea guarda su `ronda` (1 = pedido original), y el pedido guarda `rondas` (timestamp de cuándo se agregó cada una) y `tsUltimaRonda`. `mesero-app` (pestaña Pedidos) y `panel-cocina` (cada ticket) muestran las líneas agrupadas por ronda con su propio encabezado ("Pedido inicial" / "Ronda 2 · hace X min"), usando `agruparPorRonda()` de `shared/util.js`. Por esto mismo, `cancelarPedido()` (borrar el pedido entero) y `editarPedido()` (sobreescribir "lineas" completo) solo se permiten si `rondaActual` sigue en 1 — un pedido con más de una ronda ya tuvo algo en curso o servido, así que no se puede tirar/reemplazar entero.
+
+**Estado por ronda — cada ronda avanza y se sirve por separado.** Si una mesa ya tenía una ronda `listo` (esperando al mesero) y llega una ronda nueva, la ronda vieja **no se toca** — solo la ronda nueva arranca en `enviado`. Antes, agregar una ronda ponía TODO el pedido de vuelta en `estado: "enviado"`, así que la parte ya lista/servida parecía tener que prepararse de nuevo (confuso para cocina y para el mesero); se corrigió siguiendo el patrón de fulfillment por ítem que usan Toast/Oracle KDS. El detalle vive en `pedido.rondaEstados` (`{ronda: estado}`) y `pedido.rondaPrepInicio` (`{ronda: ts}`, para el cronómetro de preparación de esa ronda puntual) — `shared/util.js` expone:
+- `estadoDeRonda(p, ronda)`: estado de una ronda puntual (con fallback a `p.estado` para pedidos de antes de este campo).
+- `rondaEstadosCon(p)`: el mapa completo con el mismo fallback, para usar como base al construir un patch.
+- `estadoEfectivoTicket(p)`: la ronda pendiente MENOS avanzada (o `"entregado"` si ya se sirvieron todas) — esto es lo que se guarda en `pedido.estado` en cada cambio, así decide en qué columna aparece el ticket en `panel-cocina` y cuándo `panel-caja` puede cobrarlo, sin que ese panel necesite saber nada de rondas.
+
+En `panel-cocina`, cada grupo de ronda dentro del ticket tiene su propio botón ("Empezar"/"Marcar listo", `marcarRonda()`) y badge ("Esperando mesero"/"Servido"). En `mesero-app` (pestaña Pedidos), "Marcar servido" (`marcarServido(id, ronda)`) también es por ronda — se puede recoger la ronda 1 sin esperar a que la ronda 2 esté lista.
+
+**Cancelar un pedido no lo borra — lo marca `estado: "cancelado"`.** `cancelarPedido()` en `mesero-app` hace `dbUpdate` (nunca `dbDelete`) para que el dueño tenga registro de qué se canceló, cuándo, quién lo hizo (`canceladoPor`) y por qué (`motivoCancelacion`, opcional). Un pedido cancelado no ocupa la mesa (`mesaOcupada()`/`pedidoActivoDeMesa()` lo excluyen explícitamente) y no aparece en el tablero de `panel-cocina` ni en `panel-caja` — ninguno de los dos lo busca por `estado`, así que "cancelado" simplemente no calza en ningún filtro existente. Sigue estando disponible en `/pedidos` para quien quiera auditar cancelaciones directamente en Firebase; no hay todavía una vista/reporte dedicado a esto.
 
 **"Avisar cambio a cocina" es otra cosa distinta a una ronda.** Ese botón (visible en `mesero-app` mientras el pedido está en `preparacion`/`listo`) es para cuando el cliente quiere **modificar o quitar** algo que ya se está cocinando — cuelga un aviso (`avisoCambio`) visible y sonoro en `panel-cocina` para que se coordinen de viva voz, pero **no** toca `lineas` ni `estado`. Agregar platos nuevos SIEMPRE pasa por el flujo de rondas de arriba (aparece como algo nuevo para preparar), nunca por este aviso.
 
@@ -104,8 +125,8 @@ Vive todo en `mesero-app`, no hay CRUD de mesas en ningún panel:
 - Vanilla JS, sin frameworks, sin bundler.
 - Cada app son 3 archivos: `index.html` (estructura) + `styles.css` (estilos propios) + `app.js` (lógica). Lo común vive en `shared/`.
 - El menú completo (162 platos/bebidas + `SUGERENCIAS` por categoría) vive en **`shared/menu.js`** (script clásico, sin build) porque lo comparten `mesero-app` y `panel-cliente`.
-- **Fotos de platos**: `icons/menu/{id}.webp` (155 de 162 ítems tienen foto — los que no, se muestran con un ícono genérico). Se bajaron una sola vez del menú digital existente en Ola Click (`rodizio-cucuta.ola.click`) y quedaron como archivos estáticos del repo, referenciados desde `shared/menu.js` (campo `img` por ítem) — no hay ninguna dependencia en vivo con Ola Click. Si se agrega un plato nuevo o cambia una foto, hay que bajar/reemplazar el `.webp` a mano y agregar/editar el campo `img` en `shared/menu.js`. Actualmente solo se muestran en `panel-cliente` — `mesero-app` no las usa (podría agregarse igual, reusando el mismo campo).
-- IDs del menú: prefijo por categoría + número (`en1`, `pa3`, `ab2`…). Debe ser único en todo el archivo.
+- **Fotos de platos**: archivos en `icons/menu/` (155 de 162 ítems tienen foto — los que no, se muestran con un ícono genérico). Se bajaron una sola vez del menú digital existente en Ola Click (`rodizio-cucuta.ola.click`) y quedaron como archivos estáticos del repo, referenciados desde `shared/menu.js` (campo `img` por ítem) — no hay ninguna dependencia en vivo con Ola Click. **El nombre del archivo ya NO coincide con el `id` del ítem** (ver "IDs del menú" arriba): los `.webp` se quedaron con su nombre original (`en1.webp`, `pa3.webp`…) cuando los ids cambiaron de formato, así que `img` es un campo independiente — no se puede derivar la ruta de la foto a partir del `id`. Si se agrega un plato nuevo o cambia una foto, hay que bajar/reemplazar el `.webp` a mano y agregar/editar el campo `img` en `shared/menu.js`. Actualmente solo se muestran en `panel-cliente` — `mesero-app` no las usa (podría agregarse igual, reusando el mismo campo).
+- IDs del menú: prefijo de categoría de 3 letras mayúsculas + guión + número de 2 dígitos (`ENT-01`, `PAR-03`, `ANG-02`…) — antes era `en1`/`pa3`/`ab2` (2 letras, sin guión ni relleno de ceros); se cambió para que se lea de un vistazo a qué categoría pertenece un código en los reportes. Prefijos por categoría: Entradas→`ENT`, Para Compartir→`COM`, De la Parrilla→`PAR`, Angus Beef→`ANG`, Burger Angus→`BUR`, De la Casa→`CAS`, Del Mar→`MAR`, Menú Infantil→`INF`, Postres→`POS`, Bebidas→`BEB`, Cervezas 3 Cordilleras→`CER`, Mocktails→`MOC`, Cocteles→`COC`, Licores→`LIC`, Vinos→`VIN`, Champagnes→`CHA`. Debe ser único en todo el archivo. El campo `img` de cada ítem **no** sigue este esquema — sigue apuntando al nombre de archivo `.webp` original (ver más abajo) para no tener que renombrar 155 fotos.
 - Iconos y logo: **centralizados en `icons/`** en la raíz, no duplicados por panel.
 - Service worker por app: cachea el cascarón para offline + instalable. Las peticiones a `firebaseio.com` **nunca** se cachean — siempre en vivo.
 - Registro de cuenta **no** inicia sesión automáticamente — es intencional que vuelva al login.
@@ -131,6 +152,8 @@ Vive todo en `mesero-app`, no hay CRUD de mesas en ningún panel:
 - **No** volver a introducir reserva exclusiva de mesas (dueño / `meseroId` / bloqueo) — se probó y se descartó a propósito.
 - **No** dejar que `panel-cliente` escriba directo en `/pedidos` — el pedido del comensal solo va a `/solicitudes/{mesaId}`; el mesero es siempre quien confirma y lo pasa a cocina. Fue una decisión explícita del dueño del negocio, no un detalle técnico.
 - **No** volver a hacer que enviar una comanda a una mesa ocupada cree un `/pedidos` nuevo — fue un bug real: pedir algo más en la misma mesa duplicaba el ticket en cocina y en la pestaña "Pedidos" del mesero. Tiene que sumarse como ronda nueva al pedido activo de esa mesa (`pedidoActivoDeMesa()`/`agregarRonda()` en `mesero-app/app.js`) — ver sección "Rondas" más arriba.
+- **No** volver a resetear el pedido completo a `estado: "enviado"` cuando se agrega una ronda nueva a uno que ya estaba `listo`/`entregado` — fue un bug real: la parte ya lista o servida parecía tener que prepararse de nuevo, confundiendo a cocina y al mesero. El estado es por ronda (`rondaEstados`/`estadoDeRonda`/`estadoEfectivoTicket` en `shared/util.js`) — ver sección "Estado por ronda" más arriba.
+- **No** volver a hacer `dbDelete` sobre un pedido al cancelarlo — se cambió a propósito a marcar `estado: "cancelado"` (ver más arriba) para que el dueño tenga registro completo de cancelaciones en su reporte de caja, en vez de que desaparezcan sin dejar rastro.
 - **No** quitar los guards anti-doble-clic (`state.enviando`, y los `Set` de ids "en curso" en `marcarServido`/`marcar`/`confirmarPago`) pensando que son redundantes — sin ellos, un toque doble o una conexión lenta puede disparar la misma escritura dos veces (pedido duplicado, doble PATCH).
 
 ## Cómo crear el primer admin (consola de Firebase)

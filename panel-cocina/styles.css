@@ -1,3 +1,40 @@
+/* Ambiente de cocina: alto contraste sobre fondo oscuro (tipo kitchen
+   display system), tipografía más grande para leer de lejos y bajo luces
+   de cocina. Reemplaza los tokens de shared/theme.css SOLO dentro de este
+   documento — no afecta a las demás apps. */
+:root {
+  --color-bg: #14100d;
+  --color-surface: #1c1713;
+  --color-text: #f3ead8;
+  --color-accent: #ff4433;
+  --color-accent-2: #93c26a;
+  --color-divider: color-mix(in srgb, #f3ead8 14%, transparent);
+  --color-neutral-100: #211b16;
+  --color-neutral-200: #2a231c;
+  --color-neutral-300: #3a3126;
+  --color-neutral-400: #574a3a;
+  --color-neutral-500: #8f8069;
+  --color-neutral-600: #a3927a;
+  --color-neutral-700: #c7b89d;
+  --color-neutral-800: #e8dcc0;
+  --color-neutral-900: #f7efdc;
+  --color-accent-100: #341410;
+  --color-accent-200: #4c1c16;
+  --color-accent-300: #8a382c;
+  --color-accent-500: #ff5a44;
+  --color-accent-600: #ff6b52;
+  --color-accent-700: #ff9c85;
+  --color-accent-2-100: #202b16;
+  --color-accent-2-300: #3c5028;
+  --color-accent-2-500: #8fbf5e;
+  --color-accent-2-600: #7db24a;
+  --color-accent-2-700: #bfe89a;
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #000000 45%, transparent);
+  --shadow-md: 0 3px 12px color-mix(in srgb, #000000 50%, transparent);
+  --shadow-lg: 0 14px 36px color-mix(in srgb, #000000 60%, transparent);
+}
+body { font-size: 16.5px }
+
 h1,h2,h3{font-family:var(--font-heading);font-weight:400;margin:0}
   @keyframes rzPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.015)}}
   @keyframes rzPop{0%{opacity:0;transform:translateY(-8px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
@@ -25,7 +62,7 @@ h1,h2,h3{font-family:var(--font-heading);font-weight:400;margin:0}
   .col{min-width:0}
   .col-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:0 4px}
   .col-head .swatch{width:11px;height:11px;border-radius:4px;flex:none}
-  .col-head h2{font-size:18px;flex:1}
+  .col-head h2{font-size:21px;flex:1}
   .col-count{font-family:var(--font-body);font-weight:800;font-size:14px;background:var(--color-neutral-200);color:var(--color-neutral-800);border-radius:999px;min-width:28px;height:24px;padding:0 8px;display:flex;align-items:center;justify-content:center}
   .cards{display:flex;flex-direction:column;gap:12px;min-height:70px}
 
@@ -34,28 +71,33 @@ h1,h2,h3{font-family:var(--font-heading);font-weight:400;margin:0}
   .ticket.listo{border-color:var(--color-accent-2-500);background:var(--color-accent-2-100)}
   .ticket.nueva{animation:rzPop .28s ease both, rzRing 1.1s ease-out 1}
   .t-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
-  .t-codigo{font-family:var(--font-heading);font-size:24px;line-height:1}
-  .t-mesa{display:inline-block;margin-top:6px;font-size:13px;font-weight:700;color:var(--color-bg);background:var(--color-neutral-800);border-radius:999px;padding:4px 11px}
-  .t-time{font-size:12.5px;font-weight:700;color:var(--color-neutral-600);white-space:nowrap;text-align:right}
+  .t-codigo{font-family:var(--font-heading);font-size:28px;line-height:1}
+  .t-mesa{display:inline-block;margin-top:6px;font-size:14px;font-weight:700;color:var(--color-bg);background:var(--color-neutral-800);border-radius:999px;padding:5px 13px}
+  .t-time{font-size:14px;font-weight:700;color:var(--color-neutral-600);white-space:nowrap;text-align:right}
   .t-time.warn{color:var(--color-accent-700)}
-  .t-mesero{font-size:12.5px;color:var(--color-neutral-600);margin:2px 0 11px}
-  .t-aviso{display:flex;align-items:flex-start;gap:8px;background:#fdece4;border:1px solid #c2410c;border-radius:12px;padding:10px 12px;margin-bottom:12px;animation:rzPulse 1.6s ease-in-out infinite}
-  .t-aviso .material-symbols-outlined{color:#c2410c;font-size:20px;flex:none;margin-top:1px}
-  .t-aviso-texto{flex:1;font-size:12.5px;color:#7c2d12;line-height:1.4}
-  .t-aviso button{flex:none;align-self:center;border:1px solid #c2410c;background:transparent;color:#c2410c;border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:700;cursor:pointer}
-  .t-lineas{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
-  .t-ronda-header{font-size:10.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--color-accent-700)}
-  .t-ronda-header.ronda-sep{margin-top:6px;padding-top:10px;border-top:1px dashed var(--color-divider)}
-  .t-linea{display:flex;gap:9px;font-size:15px;line-height:1.35}
-  .t-qty{font-weight:800;color:var(--color-accent-700);min-width:26px}
+  .t-personas{display:flex;gap:18px;margin:4px 0 12px;flex-wrap:wrap}
+  .t-persona{display:flex;flex-direction:column;gap:1px}
+  .t-persona-label{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--color-neutral-500)}
+  .t-persona-valor{font-size:14.5px;font-weight:700;color:var(--color-neutral-700)}
+  .t-aviso{display:flex;align-items:flex-start;gap:8px;background:#3a1f0f;border:1px solid #ff7a3d;border-radius:12px;padding:10px 12px;margin-bottom:12px;animation:rzPulse 1.6s ease-in-out infinite}
+  .t-aviso .material-symbols-outlined{color:#ff7a3d;font-size:20px;flex:none;margin-top:1px}
+  .t-aviso-texto{flex:1;font-size:13.5px;color:#ffd9bd;line-height:1.4}
+  .t-aviso button{flex:none;align-self:center;border:1px solid #ff7a3d;background:transparent;color:#ff7a3d;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer}
+  .t-lineas{display:flex;flex-direction:column;gap:9px;margin-bottom:2px}
+  .t-ronda-header{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--color-accent-700);padding-bottom:9px;margin-bottom:9px;border-bottom:1px dashed var(--color-divider)}
+  .t-ronda-header.ronda-sep{margin-top:9px;padding-top:14px;border-top:1px dashed var(--color-divider)}
+  .t-linea{display:flex;gap:10px;font-size:17.5px;line-height:1.35}
+  .t-qty{font-weight:800;color:var(--color-accent-700);min-width:30px}
   .t-nombre{flex:1}
-  .t-nota{display:block;font-size:12.5px;color:var(--color-accent-700);background:var(--color-accent-100);border-radius:8px;padding:4px 9px;margin-top:4px;width:fit-content}
-  .t-foot{display:flex;align-items:center;gap:10px;padding-top:11px;border-top:1px dashed var(--color-divider)}
-  .t-action{margin-left:auto;border:0;border-radius:999px;padding:12px 20px;font-size:14.5px;font-weight:700;cursor:pointer;color:var(--color-bg)}
-  .t-action.a-prep{background:var(--color-accent)}
-  .t-action.a-listo{background:var(--color-accent-2-600)}
-  .t-badge-listo{margin-left:auto;font-size:13px;font-weight:800;color:var(--color-accent-2-700);display:flex;align-items:center;gap:6px}
-  .t-badge-listo .b{width:8px;height:8px;border-radius:50%;background:var(--color-accent-2-600);animation:rzPulse 1.4s ease-in-out infinite}
+  .t-nota{display:block;font-size:13.5px;color:var(--color-accent-700);background:var(--color-accent-100);border-radius:8px;padding:4px 9px;margin-top:4px;width:fit-content}
+  .t-ronda-btn{flex:none;border:0;border-radius:999px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;color:var(--color-bg);text-transform:none;letter-spacing:0}
+  .t-ronda-btn.a-prep{background:var(--color-accent)}
+  .t-ronda-btn.a-listo{background:var(--color-accent-2-600)}
+  .t-ronda-badge{flex:none;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:5px;text-transform:none;letter-spacing:0}
+  .t-ronda-badge.b-espera{color:var(--color-accent-2-700)}
+  .t-ronda-badge.b-espera .b{width:7px;height:7px;border-radius:50%;background:var(--color-accent-2-600);animation:rzPulse 1.4s ease-in-out infinite}
+  .t-ronda-badge.b-servido{color:var(--color-neutral-500)}
+  .t-ronda-badge.b-servido .material-symbols-outlined{font-size:16px}
 
   .empty{border:1.5px dashed var(--color-divider);border-radius:var(--radius-lg);padding:26px 16px;text-align:center;color:var(--color-neutral-500);font-size:13.5px}
 

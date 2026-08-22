@@ -53,13 +53,23 @@ document.getElementById("soundBtn").addEventListener("click", () => {
 /* ── Cobro: el único cambio que hace caja sobre un pedido. La mesa no
    se toca acá — en mesero-app, "ocupada" se calcula al vuelo mirando
    si queda algún pedido de esa mesa sin pagar, así que en cuanto se
-   confirma el último pago, la mesa se ve libre sola. ── */
+   confirma el último pago, la mesa se ve libre sola. Guarda también el
+   método de pago y quién cobró, para que el reporte de caja pueda
+   desglosar efectivo/tarjeta y quede registro de quién hizo el cobro. ── */
+let cajero = "";
+let cajeroUsuario = "";
 const confirmandoPago = new Set(); // ids con un cobro en curso, para no duplicar el toque
-async function confirmarPago(id) {
+async function confirmarPago(id, metodoPago) {
   if (confirmandoPago.has(id)) return;
   confirmandoPago.add(id);
   try {
-    await dbUpdate(`/pedidos/${id}`, { pagado: true, tsPago: Date.now() });
+    await dbUpdate(`/pedidos/${id}`, {
+      pagado: true,
+      tsPago: Date.now(),
+      metodoPago,
+      cajero,
+      cajeroUsuario,
+    });
   } catch (e) {
     alert("No se pudo confirmar el pago — revisa la conexión e intenta de nuevo.");
   } finally {
@@ -87,7 +97,13 @@ function ticket(id, p) {
     </div>
     <div class="t-mesero">${escapeHtml(p.mesero || "Mesero")}</div>
     <div class="t-lineas">${lineasHtml}</div>
-    <div class="t-foot"><span class="t-total">${fmtCop(p.total)}</span><button class="t-action a-pago" onclick="confirmarPago('${id}')">Confirmar pago</button></div>
+    <div class="t-foot">
+      <span class="t-total">${fmtCop(p.total)}</span>
+      <div class="t-pago-botones">
+        <button class="t-action a-pago" onclick="confirmarPago('${id}','efectivo')">Efectivo</button>
+        <button class="t-action a-pago" onclick="confirmarPago('${id}','tarjeta')">Tarjeta</button>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -146,17 +162,26 @@ function fillCobrados(cobrados) {
     : `<div class="entregados-empty">Aún no se ha cobrado ningún pedido hoy</div>`;
 }
 
-/* ── Exportar a Excel — todos los pedidos entregados que este panel
-   tiene cargados en memoria (historial completo recibido por streaming
-   desde Firebase, no solo los de hoy), con formato legible: encabezado
-   de color, columnas centradas, ancho cómodo y moneda formateada. ── */
+// Selector de mes a exportar — arranca en el mes actual para no obligar
+// a elegir en el caso más común (exportar el mes en curso).
+const mesInput = document.getElementById("mesExportar");
+if (mesInput && !mesInput.value) mesInput.value = new Date().toISOString().slice(0, 7);
+
+/* ── Exportar a Excel — los pedidos entregados y cobrados del mes
+   elegido en el selector (por defecto, el mes actual), con formato
+   legible: encabezado de color, columnas centradas, ancho cómodo y
+   moneda formateada. Incluye una segunda hoja con el total vendido por
+   plato (código + descripción) para poder buscar cuánto se vendió de
+   un plato puntual en el período. ── */
 async function exportarExcel() {
   const btn = document.getElementById("btnExportar");
+  const mesElegido = mesInput ? mesInput.value : ""; // "YYYY-MM" o "" (sin filtro)
   const cobrados = Object.entries(pedidos)
     .filter(([, p]) => p && p.estado === "entregado" && p.pagado)
+    .filter(([, p]) => !mesElegido || new Date(p.ts || 0).toISOString().slice(0, 7) === mesElegido)
     .sort((a, b) => (a[1].tsPago || 0) - (b[1].tsPago || 0));
 
-  if (!cobrados.length) { alert("Todavía no hay pedidos cobrados para exportar."); return; }
+  if (!cobrados.length) { alert("No hay pedidos cobrados para el mes elegido."); return; }
   if (typeof ExcelJS === "undefined") { alert("No se pudo cargar el generador de Excel — revisa tu conexión e intenta de nuevo."); return; }
 
   btn.disabled = true; const textoOriginal = btn.textContent; btn.textContent = "Generando…";
@@ -173,6 +198,8 @@ async function exportarExcel() {
       { header: "Fecha", key: "fecha", width: 13 },
       { header: "Hora entregado", key: "horaEntregado", width: 15 },
       { header: "Hora pago", key: "horaPago", width: 13 },
+      { header: "Método de pago", key: "metodoPago", width: 15 },
+      { header: "Cajero", key: "cajero", width: 18 },
       { header: "Ítems", key: "items", width: 55 },
       { header: "Total", key: "total", width: 15 }
     ];
@@ -187,16 +214,26 @@ async function exportarExcel() {
         fecha: enviado.toLocaleDateString("es-CO"),
         horaEntregado: p.tsCambio ? new Date(p.tsCambio).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—",
         horaPago: p.tsPago ? new Date(p.tsPago).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—",
+        metodoPago: p.metodoPago === "tarjeta" ? "Tarjeta" : p.metodoPago === "efectivo" ? "Efectivo" : "—",
+        cajero: p.cajero || "—",
         items,
         total: p.total || 0
       });
     });
 
     const totalGeneral = cobrados.reduce((s, [, p]) => s + (p.total || 0), 0);
-    const filaTotal = ws.addRow({ items: "TOTAL DEL PERIODO", total: totalGeneral });
-    filaTotal.font = { bold: true };
-    filaTotal.eachCell({ includeEmpty: true }, cell => {
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEE7DB" } };
+    const totalEfectivo = cobrados.filter(([, p]) => p.metodoPago === "efectivo").reduce((s, [, p]) => s + (p.total || 0), 0);
+    const totalTarjeta = cobrados.filter(([, p]) => p.metodoPago === "tarjeta").reduce((s, [, p]) => s + (p.total || 0), 0);
+    [
+      { items: "Total en efectivo", total: totalEfectivo },
+      { items: "Total en tarjeta", total: totalTarjeta },
+      { items: "TOTAL DEL PERIODO", total: totalGeneral },
+    ].forEach(datos => {
+      const fila = ws.addRow(datos);
+      fila.font = { bold: true };
+      fila.eachCell({ includeEmpty: true }, cell => {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEE7DB" } };
+      });
     });
 
     // Encabezado: fondo terracota, texto blanco, centrado y en negrita.
@@ -236,14 +273,68 @@ async function exportarExcel() {
       }
     });
 
-    ws.autoFilter = { from: "A1", to: "H1" };
+    ws.autoFilter = { from: "A1", to: "J1" };
+
+    // Segunda hoja: total vendido por plato en el período — para buscar,
+    // por código, cuántas unidades de un plato puntual se vendieron. Se
+    // arma sumando las líneas de todos los pedidos ya filtrados por mes.
+    const porPlato = {};
+    cobrados.forEach(([, p]) => {
+      (p.lineas || []).forEach(l => {
+        const acc = porPlato[l.id] || { codigo: l.id, nombre: l.nombre, cat: l.cat, cantidad: 0, total: 0 };
+        acc.cantidad += l.qty || 0;
+        acc.total += (l.precio || 0) * (l.qty || 0);
+        porPlato[l.id] = acc;
+      });
+    });
+    const filasPlato = Object.values(porPlato).sort((a, b) => a.codigo.localeCompare(b.codigo));
+
+    const wsPlatos = wb.addWorksheet("Resumen por plato", { views: [{ state: "frozen", ySplit: 1 }] });
+    wsPlatos.columns = [
+      { header: "Código", key: "codigo", width: 12 },
+      { header: "Descripción", key: "nombre", width: 40 },
+      { header: "Categoría", key: "cat", width: 18 },
+      { header: "Cantidad vendida", key: "cantidad", width: 16 },
+      { header: "Total vendido", key: "total", width: 16 }
+    ];
+    filasPlato.forEach(f => wsPlatos.addRow(f));
+
+    const headerPlatos = wsPlatos.getRow(1);
+    headerPlatos.height = 24;
+    headerPlatos.eachCell(cell => {
+      cell.font = { bold: true, color: { argb: "FFF9F4ED" }, size: 11 };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFC67139" } };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    });
+    wsPlatos.eachRow((row, rowNumber) => {
+      row.height = Math.max(row.height || 0, 20);
+      row.eachCell({ includeEmpty: true }, cell => {
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFE0D8C8" } },
+          left: { style: "thin", color: { argb: "FFE0D8C8" } },
+          bottom: { style: "thin", color: { argb: "FFE0D8C8" } },
+          right: { style: "thin", color: { argb: "FFE0D8C8" } }
+        };
+      });
+      if (rowNumber > 1) row.getCell("nombre").alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    });
+    wsPlatos.getColumn("total").numFmt = '"$"#,##0';
+    filasPlato.forEach((_, i) => {
+      if (i % 2 === 1) {
+        wsPlatos.getRow(i + 2).eachCell({ includeEmpty: true }, cell => {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFBF3E8" } };
+        });
+      }
+    });
+    wsPlatos.autoFilter = { from: "A1", to: "E1" };
 
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "rodizio-cobrados-" + new Date().toISOString().slice(0, 10) + ".xlsx";
+    a.download = "rodizio-cobrados-" + (mesElegido || new Date().toISOString().slice(0, 10)) + ".xlsx";
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   } catch (e) {
@@ -286,6 +377,8 @@ async function iniciar() {
       window.location.href = "../index.html";
       return;
     }
+    cajero = perfil.nombre || perfil.usuario || "Cajero";
+    cajeroUsuario = perfil.usuario || "";
     document.getElementById("vistaCargando").style.display = "none";
     document.getElementById("app").style.display = "block";
     tickClock();

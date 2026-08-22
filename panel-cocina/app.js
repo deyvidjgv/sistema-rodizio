@@ -61,19 +61,34 @@ document.getElementById("soundBtn").addEventListener("click", () => {
     : '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/>';
 });
 
-async function marcar(id, estado) {
+// Cada ronda avanza (Empezar/Marcar listo) por separado — pedir algo más en
+// una mesa que ya tiene una parte lista/servida no debe hacer que esa parte
+// "vuelva a empezar" (ver estadoEfectivoTicket/estadoDeRonda/rondaEstadosCon
+// en shared/util.js). "estado" (el resumen del ticket completo) se recalcula
+// en cada cambio para que panel-caja siga funcionando sin tocarlo.
+async function marcarRonda(id, ronda, nuevoEstado) {
   // Un doble toque (o una conexión lenta) no debe disparar dos peticiones
-  // para el mismo pedido — el botón que lo originó desaparece solo en el
-  // próximo render (el ticket cambia de columna), esto cubre el instante
-  // entre el toque y ese re-render.
-  if (marcandoEstado.has(id)) return;
-  marcandoEstado.add(id);
+  // para la misma ronda — el botón que lo originó desaparece solo en el
+  // próximo render, esto cubre el instante entre el toque y ese re-render.
+  const key = id + ":" + ronda;
+  if (marcandoEstado.has(key)) return;
+  marcandoEstado.add(key);
   try {
-    await dbUpdate(`/pedidos/${id}`, { estado, tsCambio: Date.now() });
+    const p = pedidos[id];
+    if (!p) return;
+    const rondaEstados = rondaEstadosCon(p);
+    rondaEstados[ronda] = nuevoEstado;
+    const ahora = Date.now();
+    const patch = { rondaEstados, tsCambio: ahora };
+    if (nuevoEstado === "preparacion") {
+      patch.rondaPrepInicio = Object.assign({}, p.rondaPrepInicio, { [ronda]: ahora });
+    }
+    patch.estado = estadoEfectivoTicket(Object.assign({}, p, patch));
+    await dbUpdate(`/pedidos/${id}`, patch);
   } catch (e) {
     alert("No se pudo actualizar el pedido — revisa la conexión e intenta de nuevo.");
   } finally {
-    marcandoEstado.delete(id);
+    marcandoEstado.delete(key);
   }
 }
 
@@ -95,26 +110,50 @@ function linea(l) {
   </div>`;
 }
 
-function ticket(id, p, accion, esNueva) {
+// Acción/estado visible de una ronda puntual dentro del ticket — cada ronda
+// avanza y se sirve por separado (ver marcarRonda arriba), así que una ronda
+// ya lista/servida no se ve afectada cuando llega una ronda nueva al mismo
+// ticket.
+function accionRonda(id, ronda, estadoRonda) {
+  if (estadoRonda === "enviado") {
+    return `<button class="t-ronda-btn a-prep" onclick="marcarRonda('${id}',${ronda},'preparacion')">Empezar</button>`;
+  }
+  if (estadoRonda === "preparacion") {
+    return `<button class="t-ronda-btn a-listo" onclick="marcarRonda('${id}',${ronda},'listo')">Marcar listo</button>`;
+  }
+  if (estadoRonda === "listo") {
+    return `<span class="t-ronda-badge b-espera"><span class="b"></span>Esperando mesero</span>`;
+  }
+  return `<span class="t-ronda-badge b-servido"><span class="material-symbols-outlined">check_circle</span>Servido</span>`;
+}
+
+function ticket(id, p, esNueva) {
   const min = minsDesde(p.ts);
+  const horaExacta = new Date(p.ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
   // Ronda 1 = pedido original; 2+ = se agregó después durante la misma
-  // sentada (ver agregarRonda() en mesero-app/app.js) — se separa en
-  // secciones con encabezado para que cocina entienda qué es qué y cuándo
-  // se pidió, en vez de ver todo mezclado en una sola lista.
+  // sentada (ver agregarRonda() en mesero-app/app.js). Siempre se muestra el
+  // encabezado (aunque haya una sola ronda) porque ahí vive la acción/estado
+  // de esa ronda puntual — ver accionRonda arriba.
   const grupos = agruparPorRonda(p.lineas, p.rondas);
   const lineasHtml = grupos
     .map((g) => {
-      const header =
-        grupos.length > 1
-          ? `<div class="t-ronda-header${g.ronda > 1 ? " ronda-sep" : ""}">${g.ronda === 1 ? "Pedido inicial" : "Ronda " + g.ronda}${g.ts ? " · hace " + minsDesde(g.ts) + " min" : ""}</div>`
-          : "";
+      const estadoRonda = estadoDeRonda(p, g.ronda);
+      // Mientras se está preparando, el cronómetro cuenta desde que se tocó
+      // "Empezar" para ESA ronda, no desde que se creó el pedido completo.
+      const inicioPrep = (p.rondaPrepInicio && p.rondaPrepInicio[g.ronda]) || g.ts;
+      const tiempoRonda =
+        estadoRonda === "preparacion" && inicioPrep
+          ? ` · ${minsDesde(inicioPrep)} min preparando`
+          : g.ts
+            ? " · hace " + minsDesde(g.ts) + " min"
+            : "";
+      const header = `<div class="t-ronda-header${g.ronda > 1 ? " ronda-sep" : ""}">
+        <span>${g.ronda === 1 ? "Pedido inicial" : "Ronda " + g.ronda}${tiempoRonda}</span>
+        ${accionRonda(id, g.ronda, estadoRonda)}
+      </div>`;
       return header + g.lineas.map(linea).join("");
     })
     .join("");
-  let foot = "";
-  if (accion === "prep") foot = `<button class="t-action a-prep" onclick="marcar('${id}','preparacion')">Empezar</button>`;
-  else if (accion === "listo") foot = `<button class="t-action a-listo" onclick="marcar('${id}','listo')">Marcar listo</button>`;
-  else if (accion === "espera") foot = `<span class="t-badge-listo"><span class="b"></span>Esperando mesero</span>`;
 
   // El pedido en sí no se toca — solo un aviso visible de que el mesero
   // quiere coordinar un cambio en persona (ver marcarAvisoVisto arriba).
@@ -129,12 +168,14 @@ function ticket(id, p, accion, esNueva) {
   return `<div class="ticket ${p.estado}${esNueva ? " nueva" : ""}" data-id="${id}">
     <div class="t-top">
       <div><div class="t-codigo">${escapeHtml(p.codigo || id)}</div><span class="t-mesa">${escapeHtml(String(p.mesa ?? "—"))}</span></div>
-      <div class="t-time ${min >= 15 ? "warn" : ""}">hace ${min} min</div>
+      <div class="t-time ${min >= 15 ? "warn" : ""}">${horaExacta} · hace ${min} min</div>
     </div>
-    <div class="t-mesero">${escapeHtml(p.mesero || "Mesero")}</div>
+    <div class="t-personas">
+      <span class="t-persona"><span class="t-persona-label">Cliente</span><span class="t-persona-valor">${escapeHtml(p.cliente || p.mesero || "Mesero")}</span></span>
+      <span class="t-persona"><span class="t-persona-label">Mesero</span><span class="t-persona-valor">${escapeHtml(p.mesero || "Mesero")}</span></span>
+    </div>
     ${avisoHtml}
     <div class="t-lineas">${lineasHtml}</div>
-    <div class="t-foot">${foot}</div>
   </div>`;
 }
 
@@ -156,9 +197,9 @@ function render() {
   const listos = entries.filter(([, p]) => p.estado === "listo");
   const entregados = entries.filter(([, p]) => p.estado === "entregado");
 
-  fill("colEnviado", "cEnviado", enviados, "prep", nuevos);
-  fill("colPrep", "cPrep", prep, "listo", nuevos);
-  fill("colListo", "cListo", listos, "espera", nuevos);
+  fill("colEnviado", "cEnviado", enviados, nuevos);
+  fill("colPrep", "cPrep", prep, nuevos);
+  fill("colListo", "cListo", listos, nuevos);
   fillEntregados(entregados);
   if (window.actualizarBotonInstalarPWA) window.actualizarBotonInstalarPWA();
 
@@ -179,11 +220,11 @@ function render() {
   primeraCarga = false;
 }
 
-function fill(colId, countId, list, accion, nuevos) {
+function fill(colId, countId, list, nuevos) {
   const col = document.getElementById(colId);
   document.getElementById(countId).textContent = list.length;
   col.innerHTML = list.length
-    ? list.map(([id, p]) => ticket(id, p, accion, nuevos.has(id))).join("")
+    ? list.map(([id, p]) => ticket(id, p, nuevos.has(id))).join("")
     : `<div class="empty">Sin comandas aquí por ahora</div>`;
 }
 

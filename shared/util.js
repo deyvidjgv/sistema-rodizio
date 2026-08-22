@@ -61,6 +61,45 @@ function agruparPorRonda(lineas, rondas) {
     }));
 }
 
+// ── Estado por ronda ──
+// Cada ronda de un pedido (ver agruparPorRonda arriba) avanza por cocina y
+// se sirve de forma independiente — pedir algo más en una mesa que ya tiene
+// parte lista/servida no debe "resetear" esa parte a medio hacer. El estado
+// de cada ronda vive en pedido.rondaEstados; pedido.estado (el campo de
+// siempre) se recalcula como un resumen automático para no romper a
+// panel-caja, que solo mira si el pedido completo ya es "entregado".
+const ORDEN_ESTADO_RONDA = { enviado: 0, preparacion: 1, listo: 2, entregado: 3 };
+
+// Estado de una ronda puntual. Los pedidos de antes de que existiera
+// rondaEstados no lo traen: cada una de sus rondas hereda el estado global
+// que tenía el pedido en ese momento, sin necesidad de migrar datos viejos.
+function estadoDeRonda(p, ronda) {
+  return (p.rondaEstados && p.rondaEstados[ronda]) || p.estado || "enviado";
+}
+
+// rondaEstados completo, con la misma compatibilidad hacia atrás de
+// estadoDeRonda — para usar como base al construir el patch la primera vez
+// que un pedido viejo (sin rondaEstados) recibe un cambio de estado.
+function rondaEstadosCon(p) {
+  if (p.rondaEstados) return Object.assign({}, p.rondaEstados);
+  const obj = {};
+  agruparPorRonda(p.lineas, p.rondas).forEach((g) => {
+    obj[g.ronda] = p.estado || "enviado";
+  });
+  return obj;
+}
+
+// Estado "visible" de un ticket que puede tener rondas en distintos
+// estados: la ronda pendiente menos avanzada (o "entregado" si ya se
+// sirvieron todas). Decide en qué columna del tablero de panel-cocina
+// aparece el ticket, y cuándo panel-caja puede considerarlo cobrable.
+function estadoEfectivoTicket(p) {
+  const estados = agruparPorRonda(p.lineas, p.rondas).map((g) => estadoDeRonda(p, g.ronda));
+  const pendientes = estados.filter((e) => e !== "entregado");
+  if (!pendientes.length) return "entregado";
+  return pendientes.reduce((min, e) => (ORDEN_ESTADO_RONDA[e] < ORDEN_ESTADO_RONDA[min] ? e : min), pendientes[0]);
+}
+
 // Solución para Back-Forward Cache (bfcache):
 // Obliga a recargar la página si se restaura desde el historial del navegador.
 // Esto evita que las apps se queden "congeladas" en la pantalla de verificación

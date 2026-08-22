@@ -1,0 +1,35 @@
+/* Rodizio Admin — Reportes (dashboard de Vue + Chart.js).
+   Estilos propios de esta vista, separados de styles.css porque el resto
+   de panel-admin es imperativo/vanilla y esto vive en su propio archivo
+   (dashboard.js). Reusa las variables de ../shared/theme.css y la clase
+   .card ya definida en styles.css. */
+
+.dash-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.dash-toolbar h2{margin:0}
+.mes-exportar{border:1px solid var(--color-divider);background:var(--color-neutral-100);color:var(--color-neutral-700);border-radius:999px;padding:8px 13px;font-size:12.5px;font-weight:600;font-family:var(--font-body)}
+
+.dash-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+.kpi-card{background:var(--color-bg);border:1px solid var(--color-divider);border-radius:14px;padding:16px 18px;min-width:0}
+.kpi-value{font-family:var(--font-heading);font-size:24px;line-height:1.1;color:var(--color-accent-700)}
+.kpi-label{font-size:12px;color:var(--color-neutral-600);margin-top:4px}
+.kpi-delta{font-size:11.5px;font-weight:700;margin-top:8px}
+.kpi-delta.up{color:var(--color-accent-2-700)}
+.kpi-delta.down{color:#c2410c}
+.kpi-delta.muted{color:var(--color-neutral-500);font-weight:600}
+
+.dash-filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.dash-filtros select{border:1px solid var(--color-divider);background:var(--color-neutral-100);color:var(--color-neutral-700);border-radius:999px;padding:7px 12px;font-size:12px;font-weight:600;font-family:var(--font-body);max-width:100%}
+
+.dash-charts{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:22px}
+.chart-box{position:relative;height:280px;min-width:0}
+.chart-box.chart-box-pie{height:220px}
+.chart-box canvas{max-width:100%}
+
+.dash-ranking table{width:100%}
+.dash-ranking .barra-wrap{background:var(--color-neutral-200);border-radius:999px;height:8px;overflow:hidden;min-width:70px}
+.dash-ranking .barra-fill{background:var(--color-accent);height:100%;border-radius:999px}
+.dash-ranking td.num{text-align:right;white-space:nowrap}
+
+@media (max-width: 640px){
+  .dash-charts{grid-template-columns:1fr}
+}

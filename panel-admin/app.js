@@ -357,6 +357,25 @@ async function iniciar() {
     agregarQr("custom-" + slugMesa(nombre), nombre);
     input.value = "";
   });
+
+  // Pestañas Trabajadores/Reportes — el dashboard de Reportes vive en un
+  // archivo aparte (dashboard.js, app de Vue), este toggle solo
+  // muestra/oculta las dos vistas. __dashboardOnShow (expuesto por
+  // dashboard.js) fuerza a Chart.js a recalcular el tamaño del canvas,
+  // que sale mal mientras su contenedor está en display:none.
+  $("tabTrabajadores").addEventListener("click", () => {
+    $("tabTrabajadores").classList.add("on");
+    $("tabDashboard").classList.remove("on");
+    $("vistaTrabajadores").classList.remove("hidden");
+    $("vistaDashboard").classList.add("hidden");
+  });
+  $("tabDashboard").addEventListener("click", () => {
+    $("tabDashboard").classList.add("on");
+    $("tabTrabajadores").classList.remove("on");
+    $("vistaDashboard").classList.remove("hidden");
+    $("vistaTrabajadores").classList.add("hidden");
+    if (window.__dashboardOnShow) window.__dashboardOnShow();
+  });
 }
 
 iniciar();

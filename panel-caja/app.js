@@ -206,7 +206,7 @@ async function exportarExcel() {
 
     cobrados.forEach(([id, p]) => {
       const enviado = new Date(p.ts || Date.now());
-      const items = (p.lineas || []).map(l => `${l.qty}× ${l.nombre}${l.nota ? " (" + l.nota + ")" : ""}`).join("\n");
+      const items = (p.lineas || []).map(l => `${l.qty}× [${l.id}] ${l.nombre}${l.nota ? " (" + l.nota + ")" : ""}`).join("\n");
       ws.addRow({
         codigo: p.codigo || id,
         mesa: p.mesa ?? "—",
@@ -224,10 +224,12 @@ async function exportarExcel() {
     const totalGeneral = cobrados.reduce((s, [, p]) => s + (p.total || 0), 0);
     const totalEfectivo = cobrados.filter(([, p]) => p.metodoPago === "efectivo").reduce((s, [, p]) => s + (p.total || 0), 0);
     const totalTarjeta = cobrados.filter(([, p]) => p.metodoPago === "tarjeta").reduce((s, [, p]) => s + (p.total || 0), 0);
+    const totalUnidades = cobrados.reduce((s, [, p]) => s + (p.lineas || []).reduce((s2, l) => s2 + (l.qty || 0), 0), 0);
     [
       { items: "Total en efectivo", total: totalEfectivo },
       { items: "Total en tarjeta", total: totalTarjeta },
       { items: "TOTAL DEL PERIODO", total: totalGeneral },
+      { items: "Total de productos vendidos (unidades)", total: totalUnidades },
     ].forEach(datos => {
       const fila = ws.addRow(datos);
       fila.font = { bold: true };
@@ -235,6 +237,7 @@ async function exportarExcel() {
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEE7DB" } };
       });
     });
+    const filaUnidades = ws.lastRow;
 
     // Encabezado: fondo terracota, texto blanco, centrado y en negrita.
     const header = ws.getRow(1);
@@ -263,6 +266,7 @@ async function exportarExcel() {
     });
 
     ws.getColumn("total").numFmt = '"$"#,##0';
+    filaUnidades.getCell("total").numFmt = "#,##0";
 
     // Filas alternadas para que se lea fácil de un vistazo.
     cobrados.forEach((_, i) => {
@@ -276,18 +280,10 @@ async function exportarExcel() {
     ws.autoFilter = { from: "A1", to: "J1" };
 
     // Segunda hoja: total vendido por plato en el período — para buscar,
-    // por código, cuántas unidades de un plato puntual se vendieron. Se
-    // arma sumando las líneas de todos los pedidos ya filtrados por mes.
-    const porPlato = {};
-    cobrados.forEach(([, p]) => {
-      (p.lineas || []).forEach(l => {
-        const acc = porPlato[l.id] || { codigo: l.id, nombre: l.nombre, cat: l.cat, cantidad: 0, total: 0 };
-        acc.cantidad += l.qty || 0;
-        acc.total += (l.precio || 0) * (l.qty || 0);
-        porPlato[l.id] = acc;
-      });
-    });
-    const filasPlato = Object.values(porPlato).sort((a, b) => a.codigo.localeCompare(b.codigo));
+    // por código, cuántas unidades de un plato puntual se vendieron.
+    // ventasPorPlato() vive en shared/util.js — la usa también el
+    // dashboard de panel-admin, para no duplicar este cálculo.
+    const filasPlato = ventasPorPlato(cobrados);
 
     const wsPlatos = wb.addWorksheet("Resumen por plato", { views: [{ state: "frozen", ySplit: 1 }] });
     wsPlatos.columns = [
@@ -298,6 +294,14 @@ async function exportarExcel() {
       { header: "Total vendido", key: "total", width: 16 }
     ];
     filasPlato.forEach(f => wsPlatos.addRow(f));
+
+    const totalUnidadesPlatos = filasPlato.reduce((s, f) => s + f.cantidad, 0);
+    const totalVendidoPlatos = filasPlato.reduce((s, f) => s + f.total, 0);
+    const filaTotalPlatos = wsPlatos.addRow({ nombre: "TOTAL VENDIDO (todos los platos)", cantidad: totalUnidadesPlatos, total: totalVendidoPlatos });
+    filaTotalPlatos.font = { bold: true };
+    filaTotalPlatos.eachCell({ includeEmpty: true }, cell => {
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEE7DB" } };
+    });
 
     const headerPlatos = wsPlatos.getRow(1);
     headerPlatos.height = 24;

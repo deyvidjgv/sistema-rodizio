@@ -100,6 +100,24 @@ function estadoEfectivoTicket(p) {
   return pendientes.reduce((min, e) => (ORDEN_ESTADO_RONDA[e] < ORDEN_ESTADO_RONDA[min] ? e : min), pendientes[0]);
 }
 
+// Suma, por plato, cuántas unidades y cuánto dinero se vendieron dentro de
+// un conjunto de pedidos ya filtrado (p. ej. cobrados de un mes). Recibe el
+// mismo shape que Object.entries(pedidos): [[id, pedido], ...]. La usan
+// tanto el Excel de panel-caja como el dashboard de panel-admin para no
+// mantener el mismo cálculo duplicado en dos archivos.
+function ventasPorPlato(pedidosFiltrados) {
+  const porPlato = {};
+  (pedidosFiltrados || []).forEach(([, p]) => {
+    (p.lineas || []).forEach(l => {
+      const acc = porPlato[l.id] || { codigo: l.id, nombre: l.nombre, cat: l.cat, cantidad: 0, total: 0 };
+      acc.cantidad += l.qty || 0;
+      acc.total += (l.precio || 0) * (l.qty || 0);
+      porPlato[l.id] = acc;
+    });
+  });
+  return Object.values(porPlato).sort((a, b) => a.codigo.localeCompare(b.codigo));
+}
+
 // Solución para Back-Forward Cache (bfcache):
 // Obliga a recargar la página si se restaura desde el historial del navegador.
 // Esto evita que las apps se queden "congeladas" en la pantalla de verificación
